@@ -3,9 +3,8 @@ module.exports = {
     {
       name: "heibuneko.tech",
       cwd: __dirname,
-      script: "pnpm",
+      script: "node_modules/next/dist/bin/next",
       args: "start",
-      interpreter: "none",
       env: {
         NODE_ENV: "production",
         PORT: 3000,

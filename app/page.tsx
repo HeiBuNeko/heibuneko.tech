@@ -1,22 +1,16 @@
-import AnimatedCursor from "react-animated-cursor";
-import { BackgroundCarousel } from "./components/background-carousel";
-import { HeiBuNekoProfile } from "./components/heibuneko-profile";
-import { ThemeSwitcher } from "./components/theme-switcher";
+import { BackgroundCarousel } from "./components/effects/background-carousel";
+import { CustomCursor } from "./components/effects/custom-cursor";
+import { ProfileCard } from "./components/sections/profile-card";
+import { ThemeSwitcher } from "./components/ui/theme-switcher";
 
 export default function Home() {
   return (
-    <div className="relative h-screen w-screen overflow-hidden p-8">
-      <AnimatedCursor
-        color="255, 255, 255"
-        innerStyle={{ mixBlendMode: "difference" }}
-        outerStyle={{ mixBlendMode: "difference" }}
-      />
+    <div className="relative h-screen w-screen overflow-hidden">
+      <CustomCursor />
       <BackgroundCarousel />
-      {/* Mask */}
-      <div className="pointer-events-none absolute inset-0 bg-linear-to-br from-white/70 via-white/25 to-transparent dark:from-black/70 dark:via-black/25 dark:to-transparent" />
       {/* Hero */}
-      <div className="relative flex items-start justify-between">
-        <HeiBuNekoProfile />
+      <div className="relative flex items-start justify-between p-8">
+        <ProfileCard />
         <ThemeSwitcher />
       </div>
     </div>

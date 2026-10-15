@@ -4,3 +4,7 @@
 @theme inline {
   --font-sans: var(--font-noto-sans-sc);
 }
+
+* {
+  cursor: none;
+}

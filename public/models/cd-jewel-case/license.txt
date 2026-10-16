@@ -1,0 +1,11 @@
+Model Information:
+* title:	CD + Jewel Case
+* source:	https://sketchfab.com/3d-models/cd-jewel-case-f6c8386e76e54918b551ebdd276479dd
+* author:	blue man group (https://sketchfab.com/bloobloo)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "CD + Jewel Case" (https://sketchfab.com/3d-models/cd-jewel-case-f6c8386e76e54918b551ebdd276479dd) by blue man group (https://sketchfab.com/bloobloo) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

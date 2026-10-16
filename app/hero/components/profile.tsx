@@ -1,6 +1,7 @@
 "use client";
 
-import { Button, Typography } from "@heroui/react";
+import { Button } from "@heroui/react";
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { SiGithub, SiNextdotjs, SiReact, SiX } from "react-icons/si";
 
@@ -13,18 +14,22 @@ export const Profile = () => {
   }, []);
 
   return (
-    <div className="flex flex-col gap-4 font-thin">
+    <header className="flex flex-col gap-4 font-thin">
       {/* HeiBuNeko's Avatar and Name */}
       <div className="flex items-center gap-4">
-        <div className='size-12 rounded-full bg-[url("/img/avatar.webp")] bg-center bg-cover' />
-        <Typography className="text-4xl">HeiBuNeko</Typography>
+        <Image
+          src="/img/avatar.webp"
+          alt="HeiBuNeko"
+          width={48}
+          height={48}
+          className="size-12 rounded-full object-cover"
+        />
+        <h1 className="text-4xl">HeiBuNeko</h1>
       </div>
       {/* HeiBuNeko's Description */}
-      <Typography className="text-2xl">
-        Scientist working on creating NekoMusume
-      </Typography>
+      <p className="text-2xl">Scientist working on creating NekoMusume</p>
       {/* HeiBuNeko's Social Media Links */}
-      <div className="flex items-center gap-4">
+      <nav className="flex items-center gap-4">
         <SiGithub
           size={20}
           onClick={() => window.open("https://github.com/HeiBuNeko")}
@@ -44,14 +49,14 @@ export const Profile = () => {
           <SiNextdotjs />
           Next.js
         </Button>
-      </div>
+      </nav>
       {/* HeiBuNeko's Current Time */}
-      <Typography suppressHydrationWarning>
+      <time dateTime={now?.toISOString()} suppressHydrationWarning>
         {new Intl.DateTimeFormat("en-US", {
           dateStyle: "full",
           timeStyle: "full",
         }).format(now)}
-      </Typography>
-    </div>
+      </time>
+    </header>
   );
 };

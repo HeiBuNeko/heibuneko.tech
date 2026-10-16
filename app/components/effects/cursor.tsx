@@ -4,8 +4,8 @@ import { frame, motion, useMotionValue, useSpring } from "motion/react";
 import { type RefObject, useEffect, useRef, useState } from "react";
 
 const useFollowPointer = (ref: RefObject<HTMLDivElement | null>) => {
-  const dotX = useMotionValue(0);
-  const dotY = useMotionValue(0);
+  const dotX = useMotionValue(-10);
+  const dotY = useMotionValue(-10);
   const circleX = useSpring(dotX);
   const circleY = useSpring(dotY);
 
@@ -23,16 +23,16 @@ const useFollowPointer = (ref: RefObject<HTMLDivElement | null>) => {
     window.addEventListener("pointermove", handlePointerMove);
 
     return () => window.removeEventListener("pointermove", handlePointerMove);
-  }, [ref, dotX, dotY]);
+  }, []);
 
   return { dotX, dotY, circleX, circleY };
 };
 
-export const CustomCursor = () => {
+export const Cursor = () => {
   const ref = useRef<HTMLDivElement>(null);
   const { dotX, dotY, circleX, circleY } = useFollowPointer(ref);
 
-  // Press State
+  // Cursor State
   const [pressed, setPressed] = useState(false);
   const [visible, setVisible] = useState(false);
   const [hovered, setHovered] = useState(false);
@@ -75,6 +75,7 @@ export const CustomCursor = () => {
     const onLeave = () => setHovered(false);
     window.addEventListener("pointerover", onOver);
     document.documentElement.addEventListener("pointerleave", onLeave);
+
     return () => {
       window.removeEventListener("pointerover", onOver);
       document.documentElement.removeEventListener("pointerleave", onLeave);

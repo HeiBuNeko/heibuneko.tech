@@ -4,7 +4,7 @@ import { Button, Typography } from "@heroui/react";
 import { useEffect, useState } from "react";
 import { SiGithub, SiNextdotjs, SiReact, SiX } from "react-icons/si";
 
-export function ProfileCard() {
+export const Profile = () => {
   const [now, setNow] = useState<Date>();
 
   useEffect(() => {
@@ -13,7 +13,7 @@ export function ProfileCard() {
   }, []);
 
   return (
-    <div className="flex flex-col gap-4 rounded-4xl font-thin">
+    <div className="flex flex-col gap-4 font-thin">
       {/* HeiBuNeko's Avatar and Name */}
       <div className="flex items-center gap-4">
         <div className='size-12 rounded-full bg-[url("/img/avatar.webp")] bg-center bg-cover' />
@@ -54,4 +54,4 @@ export function ProfileCard() {
       </Typography>
     </div>
   );
-}
+};

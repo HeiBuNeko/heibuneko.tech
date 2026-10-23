@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { Bangumi } from "./bangumi";
 import { Cursor } from "./components/cursor";
 import { Loading } from "./components/loading";
 import { NavTabs, type Tab } from "./components/nav-tabs";
@@ -29,7 +28,7 @@ const HomePage = () => {
   return (
     <div className="relative h-screen w-screen overflow-hidden">
       <Cursor />
-      {tab === "hero" ? <Hero entrance={entrance} /> : <Bangumi />}
+      <Hero entrance={entrance} />
       <NavTabs tab={tab} onSelect={select} />
       {splash && <Splash />}
       {pending && (

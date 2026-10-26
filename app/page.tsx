@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Bangumi } from "./bangumi";
 import { Cursor } from "./components/cursor";
 import { Loading } from "./components/loading";
 import { NavTabs, type Tab } from "./components/nav-tabs";
@@ -12,9 +13,11 @@ const HomePage = () => {
   const [pending, setPending] = useState<Tab | null>(null);
   const [splash, setSplash] = useState(true);
   const [entrance, setEntrance] = useState(true);
+  const [bangumiMounted, setBangumiMounted] = useState(false);
 
   const select = (next: Tab) => {
     if (next === tab || pending) return;
+    if (next === "bangumi") setBangumiMounted(true);
     setPending(next);
   };
 
@@ -28,7 +31,8 @@ const HomePage = () => {
   return (
     <div className="relative h-screen w-screen overflow-hidden">
       <Cursor />
-      <Hero entrance={entrance} />
+      {tab === "hero" && <Hero entrance={entrance} />}
+      {bangumiMounted && <Bangumi active={tab === "bangumi"} />}
       <NavTabs tab={tab} onSelect={select} />
       {splash && <Splash />}
       {pending && (

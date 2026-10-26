@@ -1,0 +1,68 @@
+.bangumi-stage {
+  --ink: #e9eef2;
+  --muted: #9caabd;
+  --accent: #d9ad7d;
+  --page-bg: #08121f;
+  isolation: isolate;
+  overflow: hidden;
+  background: var(--page-bg);
+  color: var(--ink);
+  font-family: var(--font-noto-sans-sc), sans-serif;
+}
+
+.bangumi-stage .three-scene {
+  position: absolute;
+  inset: 0;
+  opacity: 1;
+}
+
+.bangumi-stage .three-scene canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+
+.bangumi-status {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  padding: 24px;
+  color: var(--ink);
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-align: center;
+  pointer-events: none;
+}
+
+.bangumi-copyright {
+  position: absolute;
+  right: 0;
+  bottom: max(12px, env(safe-area-inset-bottom));
+  left: 0;
+  z-index: 3;
+  margin: 0;
+  padding: 0 24px;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 300;
+  letter-spacing: 0.04em;
+  line-height: 1.5;
+  text-align: center;
+  pointer-events: none;
+}
+
+.bangumi-copyright a {
+  color: inherit;
+  pointer-events: auto;
+  text-decoration: none;
+}
+
+.bangumi-copyright a:hover,
+.bangumi-copyright a:focus-visible {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}

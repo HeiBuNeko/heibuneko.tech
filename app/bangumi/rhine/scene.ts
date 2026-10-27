@@ -1704,10 +1704,12 @@ export class ArchiveScene {
     const musicIntro = Boolean(musicLibrary && cinematic?.musicIntro);
     // Music owns a separate array edit; the legacy number only adapts its clock.
     // Delayed columns settle into the live browsing wave before controls return.
-    const shot = musicIntro
-      ? Math.min(cinematic?.time, 27.12)
-      : (cinematic?.time ?? 29.1);
-    const introPose = musicIntro ? musicIntroPose(shot) : undefined;
+    const shot =
+      musicIntro && cinematic
+        ? Math.min(cinematic.time, 27.12)
+        : (cinematic?.time ?? 29.1);
+    const introPose =
+      musicIntro && cinematic ? musicIntroPose(shot) : undefined;
     const introSettle = introPose?.settle ?? 0;
     if (cinematic) {
       this.scanTime = shot;
@@ -1782,7 +1784,7 @@ export class ArchiveScene {
     if (cinematic) {
       this.rail.value = musicIntro ? -2.17 - chosen.z : 0;
       this.rail.velocity = 0;
-      this.lift.value = musicIntro ? introPose?.lift : extraction(shot);
+      this.lift.value = introPose ? introPose.lift : extraction(shot);
       this.lift.velocity = 0;
       this.shoulder.value = selectedRow;
       if (musicIntro) this.shoulder.velocity = 0;

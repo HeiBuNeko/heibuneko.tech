@@ -4,7 +4,7 @@ import { motion } from "motion/react";
 
 const TABS = [
   { id: "hero", label: "Hero" },
-  { id: "bangumi", label: "Bangumi" },
+  { id: "bangumi", label: "RhineBangumi" },
 ] as const;
 
 export type Tab = (typeof TABS)[number]["id"];

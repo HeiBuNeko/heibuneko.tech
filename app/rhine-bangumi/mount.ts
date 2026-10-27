@@ -1,18 +1,18 @@
-import { type ArchiveNavigation, wrap } from "./rhine/archive-loop";
+import { type ArchiveNavigation, wrap } from "./archive/archive-loop";
 import {
   archiveColumns,
   columnFiles,
   fileLocation,
   records,
   setMusicAlbums,
-} from "./rhine/data";
-import { demoAlbums, demoGenres } from "./rhine/demo-library";
-import { MusicBoot } from "./rhine/music-boot";
-import { DEFAULT_LIGHTING_PRESET } from "./rhine/music-row-lighting";
-import { mountMusicWheelNavigation } from "./rhine/music-wheel-navigation";
-import { qualityPresets } from "./rhine/render-quality";
-import { ArchiveScene } from "./rhine/scene";
-import { viewportLayout } from "./rhine/viewport-layout";
+} from "./data/data";
+import { demoAlbums, demoGenres } from "./data/demo-library";
+import { viewportLayout } from "./motion/viewport-layout";
+import { DEFAULT_LIGHTING_PRESET } from "./rendering/music-row-lighting";
+import { qualityPresets } from "./rendering/render-quality";
+import { ArchiveScene } from "./rendering/scene";
+import { MusicBoot } from "./ui/music-boot";
+import { mountMusicWheelNavigation } from "./ui/music-wheel-navigation";
 
 export type BangumiHandle = {
   setActive: (active: boolean) => void;

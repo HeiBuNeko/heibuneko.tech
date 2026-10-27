@@ -6,8 +6,6 @@ import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { SMAAPass } from "three/addons/postprocessing/SMAAPass.js";
 import { SSAOPass } from "three/addons/postprocessing/SSAOPass.js";
-import { CardAppearance } from "./appearance";
-import { createArchiveLighting, type LightingLook } from "./archive-lighting";
 import {
   type ArchiveCell,
   type ArchiveNavigation,
@@ -22,10 +20,21 @@ import {
   sameCell,
   selectionCell,
   visibleCell,
-} from "./archive-loop";
-import { assetUrl as publicAsset } from "./asset-url";
-import { labelMarkSvg } from "./brand";
-import { CoverAtlas } from "./cover-atlas";
+} from "../archive/archive-loop";
+import { CoverAtlas } from "../archive/cover-atlas";
+import { MusicArchiveMotion } from "../archive/music-archive-motion";
+import {
+  isRealAlbumCell,
+  type MusicArrayMode,
+} from "../archive/music-array-layout";
+import {
+  MUSIC_OVERVIEW_PICK_EXTENT,
+  MusicOverviewMotion,
+  musicOverviewColumnExtent,
+  type OverviewColumn,
+  overviewFraming,
+} from "../archive/music-overview";
+import { MusicRealColumns } from "../archive/music-real-columns";
 import {
   archiveColumns,
   columnFiles,
@@ -33,9 +42,8 @@ import {
   fileLocation,
   musicLibrary,
   records,
-} from "./data";
-import { DecryptionController } from "./decryption";
-import { configureInternalOptics } from "./internal-optics";
+} from "../data/data";
+import { DecryptionController } from "../motion/decryption";
 import {
   archiveWave,
   baselineSelectionWave,
@@ -50,10 +58,7 @@ import {
   rippleEnvelope,
   settlingWave,
   smooth,
-} from "./motion";
-import { MusicArchiveMotion } from "./music-archive-motion";
-import { isRealAlbumCell, type MusicArrayMode } from "./music-array-layout";
-import { MUSIC_DAYLIGHT, musicFogDistances } from "./music-atmosphere";
+} from "../motion/motion";
 import {
   MusicCameraMotion,
   MusicPlacementMotion,
@@ -62,13 +67,21 @@ import {
   musicArchiveTracksSettled,
   musicCinematicPose,
   musicExtractionAnchor,
-} from "./music-camera";
-import { MUSIC_CD_ASSET } from "./music-cd-asset";
+} from "../motion/music-camera";
 import {
   musicIntroLaneSettle,
   musicIntroPose,
   musicIntroWave,
-} from "./music-intro-motion";
+} from "../motion/music-intro-motion";
+import { getMusicMotionSpeed } from "../motion/music-motion";
+import { archiveFraming, swipeDirection } from "../motion/viewport-layout";
+import { CardAppearance } from "./appearance";
+import { createArchiveLighting, type LightingLook } from "./archive-lighting";
+import { assetUrl as publicAsset } from "./asset-url";
+import { labelMarkSvg } from "./brand";
+import { configureInternalOptics } from "./internal-optics";
+import { MUSIC_DAYLIGHT, musicFogDistances } from "./music-atmosphere";
+import { MUSIC_CD_ASSET } from "./music-cd-asset";
 import { MusicSelectionLighting } from "./music-lighting";
 import {
   configureMusicGlass,
@@ -77,15 +90,6 @@ import {
   musicAssemblyPart,
   normalizeMusicGeometry,
 } from "./music-model";
-import { getMusicMotionSpeed } from "./music-motion";
-import {
-  MUSIC_OVERVIEW_PICK_EXTENT,
-  MusicOverviewMotion,
-  musicOverviewColumnExtent,
-  type OverviewColumn,
-  overviewFraming,
-} from "./music-overview";
-import { MusicRealColumns } from "./music-real-columns";
 import {
   applyTextureQuality,
   normalizeQuality,
@@ -93,7 +97,6 @@ import {
   resizeQuality,
 } from "./render-quality";
 import { ThemeTransition } from "./theme-transition";
-import { archiveFraming, swipeDirection } from "./viewport-layout";
 
 // Music browsing exposes a little more artwork; original archives and the
 // reference animation keep their 0.4 preview height and existing camera path.

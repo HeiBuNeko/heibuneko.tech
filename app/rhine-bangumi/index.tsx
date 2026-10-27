@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import type { BangumiHandle } from "./mount";
-import "./stage.css";
+import "./styles/stage.css";
 
 type BangumiProps = {
   active: boolean;

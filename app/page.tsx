@@ -1,12 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { Bangumi } from "./bangumi";
 import { Cursor } from "./components/cursor";
 import { Loading } from "./components/loading";
 import { NavTabs, type Tab } from "./components/nav-tabs";
 import { Splash } from "./components/splash";
 import { Hero } from "./hero";
+import { Bangumi } from "./rhine-bangumi";
 
 const HomePage = () => {
   const [tab, setTab] = useState<Tab>("hero");

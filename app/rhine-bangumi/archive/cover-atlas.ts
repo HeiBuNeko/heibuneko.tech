@@ -1,7 +1,10 @@
 import * as THREE from "three";
-import type { ArchiveRecord } from "./data";
-import type { MusicSelectionLighting } from "./music-lighting";
-import { createAlbumPrintMaterial, MUSIC_COVER } from "./music-model";
+import type { ArchiveRecord } from "../data/data";
+import type { MusicSelectionLighting } from "../rendering/music-lighting";
+import {
+  createAlbumPrintMaterial,
+  MUSIC_COVER,
+} from "../rendering/music-model";
 
 // Paper insert inside the thin lid, shared by shelf, selection and viewer.
 export const COVER_SIZE = MUSIC_COVER;

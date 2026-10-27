@@ -1,4 +1,4 @@
-import { archiveColumns, columnFiles, fileLocation } from "./data";
+import { archiveColumns, columnFiles, fileLocation } from "../data/data";
 
 export type ArchiveCell = { lane: number; row: number };
 export type ArchiveNavigation =

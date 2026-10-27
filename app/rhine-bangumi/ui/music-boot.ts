@@ -1,4 +1,6 @@
-import "./music-boot.css";
+import "../styles/music-boot.css";
+import { musicIntroFrame } from "../motion/music-intro-motion";
+import { followMusicMotionSpeed } from "../motion/music-motion";
 import {
   MUSIC_BOOT_END_TIME,
   MUSIC_BOOT_SCENE_REVEAL_TIME,
@@ -6,8 +8,6 @@ import {
   MusicBootFrameClock,
   musicBootSceneTime,
 } from "./music-boot-timing";
-import { musicIntroFrame } from "./music-intro-motion";
-import { followMusicMotionSpeed } from "./music-motion";
 import {
   MUSIC_OPENING_CAPTION,
   MusicOpening,

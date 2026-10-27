@@ -1,5 +1,5 @@
+import { damp } from "../motion/motion";
 import type { ArchiveCell } from "./archive-loop";
-import { damp } from "./motion";
 import { musicArchiveTravelDuration } from "./music-archive-motion";
 
 type Polynomial = [number, number, number, number, number, number];

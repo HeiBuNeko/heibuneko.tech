@@ -1,6 +1,6 @@
+import type { Spring } from "../motion/motion";
+import { MUSIC_COLUMN_SPACING } from "../rendering/music-model";
 import { ROW_SPACING } from "./archive-loop";
-import type { Spring } from "./motion";
-import { MUSIC_COLUMN_SPACING } from "./music-model";
 
 export const ARCHIVE_TRACK_KEYS = [
   "rail",

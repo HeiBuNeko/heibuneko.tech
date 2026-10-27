@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { damp, smooth } from "./motion";
+import { damp, smooth } from "../motion/motion";
 
 /** A shared transition drives camera framing and real-column centering. */
 export class MusicOverviewMotion {

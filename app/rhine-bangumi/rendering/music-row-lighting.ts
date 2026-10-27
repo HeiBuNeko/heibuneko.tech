@@ -1,4 +1,4 @@
-import { musicIntroLightRow } from "./music-intro-motion";
+import { musicIntroLightRow } from "../motion/music-intro-motion";
 import { MUSIC_COLUMN_SPACING } from "./music-model";
 
 /** V0.3.1: a world-space shelf ribbon. Width is its full width at half maximum,

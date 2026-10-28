@@ -1,8 +1,11 @@
 .bangumi-stage {
   --ink: #e9eef2;
   --muted: #9caabd;
+  --line: rgba(208, 226, 243, 0.2);
   --accent: #d9ad7d;
   --page-bg: #08121f;
+  --veil: rgba(10, 21, 37, 0.75);
+  --music-page-edge: clamp(20px, 2.5vw, 48px);
   isolation: isolate;
   overflow: hidden;
   background: var(--page-bg);
@@ -10,10 +13,30 @@
   font-family: var(--font-noto-sans-sc), sans-serif;
 }
 
-.bangumi-stage .three-scene {
+.bangumi-stage button {
+  border: 0;
+  padding: 0;
+  color: inherit;
+  background: none;
+  font: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.bangumi-stage button:focus-visible,
+.bangumi-stage a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+}
+
+.bangumi-stage [hidden] {
+  display: none;
+}
+
+.bangumi-stage .three-scene,
+.bangumi-stage .bangumi-interface {
   position: absolute;
   inset: 0;
-  opacity: 1;
 }
 
 .bangumi-stage .three-scene canvas {
@@ -23,10 +46,450 @@
   touch-action: none;
 }
 
+.bangumi-stage .bangumi-interface {
+  pointer-events: none;
+}
+.bangumi-interface button,
+.bangumi-interface a {
+  pointer-events: auto;
+}
+.bangumi-interface .music-vignette {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(
+    180deg,
+    var(--veil),
+    transparent 23%,
+    transparent 75%,
+    var(--veil)
+  );
+}
+.bangumi-interface .music-header {
+  position: absolute;
+  z-index: 6;
+  top: var(--music-page-edge);
+  left: var(--music-page-edge);
+}
+.bangumi-interface .music-brand {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.55;
+}
+.bangumi-interface .music-brand strong {
+  font-size: clamp(23px, 2vw, 31px);
+  letter-spacing: 1px;
+  line-height: 1;
+}
+.bangumi-interface .music-brand span {
+  margin-top: 8px;
+  font-size: 9px;
+  letter-spacing: 1.8px;
+}
+.bangumi-interface .music-brand i {
+  margin: 0 5px;
+  color: var(--muted);
+  font-style: normal;
+}
+
+.bangumi-interface .music-browse,
+.bangumi-interface .music-detail {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+}
+.bangumi-interface .music-browse-veil {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 42%,
+    var(--veil) 66%,
+    var(--page-bg) 96%
+  );
+}
+.bangumi-interface .album-callout {
+  position: absolute;
+  z-index: 3;
+  top: clamp(155px, 30vh, 330px);
+  bottom: 150px;
+  left: 57%;
+  right: var(--music-page-edge);
+  display: flex;
+  flex-direction: column;
+  max-width: 520px;
+  min-height: 0;
+}
+.bangumi-interface .album-callout > * {
+  flex-shrink: 0;
+}
+.bangumi-interface .music-eyebrow {
+  margin: 0;
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  line-height: 1.7;
+}
+.bangumi-interface .music-eyebrow > span {
+  margin: 0 4px;
+}
+.bangumi-interface .selection-rule {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0 0 17px;
+  padding: 15px 0 12px;
+  border-bottom: 1px solid var(--ink);
+  font-size: 10px;
+  letter-spacing: 1px;
+}
+.bangumi-interface .selection-rule > span:last-child {
+  color: var(--muted);
+  font-size: 9px;
+}
+.bangumi-interface .album-callout h1 {
+  position: relative;
+  margin: 0 0 13px;
+  font-size: var(--album-title-size, clamp(26px, 2.7vw, 44px));
+  font-weight: 700;
+  line-height: 1.4;
+  letter-spacing: -0.6px;
+  overflow-wrap: anywhere;
+}
+.bangumi-interface .selection-artist {
+  margin: 0 0 21px;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.bangumi-interface .selection-meta {
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: 0.5px;
+}
+.bangumi-interface .open-album {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  margin-top: 22px;
+  padding: 10px 0 14px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  font-size: 13px;
+}
+.bangumi-interface .open-album > span {
+  font-size: 24px;
+  line-height: 1;
+}
+.bangumi-interface .open-album:hover,
+.bangumi-interface .album-stepper button:hover,
+.bangumi-interface .genre-stepper button:hover,
+.bangumi-interface .detail-album-navigation button:hover {
+  color: var(--accent);
+}
+
+.bangumi-interface .music-navigation {
+  position: absolute;
+  bottom: max(60px, calc(env(safe-area-inset-bottom) + 45px));
+  left: var(--music-page-edge);
+  right: var(--music-page-edge);
+  display: grid;
+  grid-template-columns: 210px 1fr 1.1fr;
+  align-items: center;
+  gap: 40px;
+  z-index: 4;
+}
+.bangumi-interface .music-counter > div {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-top: 6px;
+}
+.bangumi-interface .music-counter b {
+  font-size: 50px;
+  line-height: 1;
+  font-weight: 300;
+  letter-spacing: -3px;
+}
+.bangumi-interface .music-counter > div > span {
+  font-size: 12px;
+  color: var(--muted);
+}
+.bangumi-interface .music-counter i {
+  margin-left: 8px;
+  font-style: normal;
+  letter-spacing: 1px;
+}
+.bangumi-interface .album-stepper {
+  display: flex;
+  align-items: center;
+  gap: 21px;
+  justify-self: center;
+}
+.bangumi-interface .album-stepper > button,
+.bangumi-interface .genre-stepper > button {
+  font-size: 25px;
+  line-height: 28px;
+}
+.bangumi-interface .genre-stepper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+}
+.bangumi-interface .genre-stepper > div {
+  text-align: center;
+  min-width: 118px;
+}
+.bangumi-interface .genre-stepper small {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--muted);
+  font-size: 8px;
+  letter-spacing: 1.3px;
+}
+.bangumi-interface #genre-name {
+  display: block;
+  font-size: 14px;
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+.bangumi-interface .music-keyhint {
+  position: absolute;
+  z-index: 3;
+  right: var(--music-page-edge);
+  bottom: 37px;
+  left: var(--music-page-edge);
+  color: var(--muted);
+  text-align: center;
+  font-size: 8px;
+  letter-spacing: 0.5px;
+}
+.bangumi-stage .bangumi-interface .music-keyhint span {
+  margin: 0 8px;
+  opacity: 0.6;
+}
+
+.bangumi-interface .music-detail {
+  pointer-events: none;
+}
+.bangumi-interface .music-back {
+  position: absolute;
+  top: 112px;
+  left: var(--music-page-edge);
+  display: flex;
+  align-items: center;
+  gap: 25px;
+  font-size: 10px;
+  letter-spacing: 0.4px;
+}
+.bangumi-interface .music-back kbd {
+  padding: 1px 3px;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 9px;
+}
+.bangumi-interface .card-caption {
+  position: absolute;
+  left: var(--music-page-edge);
+  bottom: 82px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.bangumi-stage .bangumi-interface .card-caption > span {
+  font-size: 12px;
+  letter-spacing: 2px;
+}
+.bangumi-interface .card-caption > small {
+  font-size: 9px;
+  color: var(--muted);
+}
+.bangumi-interface #album-detail-content {
+  position: absolute;
+  top: 150px;
+  right: var(--music-page-edge);
+  bottom: 52px;
+  left: 60%;
+  overflow: auto;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+  overscroll-behavior: contain;
+  padding-right: 9px;
+  outline: none;
+  pointer-events: auto;
+}
+.bangumi-interface .detail-overline {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: center;
+  margin-bottom: 18px;
+  font-size: 8px;
+  letter-spacing: 1.6px;
+}
+.bangumi-interface #album-detail-content > h1 {
+  margin: 0 0 10px;
+  font-size: clamp(24px, 2.45vw, 39px);
+  font-weight: 600;
+  line-height: 1.22;
+  overflow-wrap: anywhere;
+}
+.bangumi-interface .detail-artist {
+  margin: 0 0 22px;
+  font-size: 14px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+.bangumi-interface .album-facts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px 18px;
+  padding: 19px 0;
+  border-top: 1px solid var(--ink);
+  border-bottom: 1px solid var(--line);
+}
+.bangumi-interface .album-facts small,
+.bangumi-interface .bangumi-image-field > small,
+.bangumi-interface .album-about > small {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--muted);
+  font-size: 8px;
+  letter-spacing: 0.7px;
+}
+.bangumi-stage .bangumi-interface .album-facts span {
+  display: block;
+  font-size: 11px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.bangumi-interface .bangumi-image-field {
+  padding: 20px 0;
+  border-bottom: 1px solid var(--line);
+}
+.bangumi-interface .bangumi-image-field > div {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.bangumi-interface .bangumi-image-field img {
+  width: 64px;
+  height: 84px;
+  flex: none;
+  object-fit: contain;
+}
+.bangumi-interface .bangumi-image-field a {
+  min-width: 0;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.bangumi-interface .album-about {
+  padding: 22px 0 8px;
+}
+.bangumi-interface .album-about p {
+  margin: 12px 0 0;
+  font-size: 12px;
+  line-height: 1.85;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.bangumi-interface .detail-album-navigation {
+  display: flex;
+  gap: 20px;
+  margin-top: 22px;
+  padding: 20px 0;
+  border-top: 1px solid var(--line);
+}
+.bangumi-interface .detail-album-navigation button {
+  min-height: 32px;
+  font-size: 10px;
+}
+
+/* Original Rhine Music title and number reels, adapted for the Bangumi labels. */
+.bangumi-stage .music-rolling-text,
+.bangumi-stage .music-rolling-number {
+  --rn-blur: 0;
+  --rn-edge-fade: 0.08em;
+}
+.bangumi-stage .music-title-layout {
+  display: block;
+  height: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+.bangumi-stage .music-title-rolling {
+  position: absolute;
+  inset: 0;
+  overflow: clip;
+  overflow-clip-margin: 0.08em;
+  pointer-events: none;
+}
+.bangumi-stage .album-callout h1.music-title-probe {
+  --album-title-size: initial;
+  position: absolute;
+  top: 0;
+  left: -10000px;
+  max-width: none;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  contain: layout style paint;
+  visibility: hidden;
+}
+.bangumi-stage .music-title-candidate {
+  position: absolute;
+  inset: 0 0 auto;
+  display: block;
+  line-height: inherit;
+}
+.bangumi-stage .music-title-slot {
+  position: absolute;
+  top: 0;
+  left: 0;
+  box-sizing: content-box;
+  padding-inline: 0.15em;
+  margin-inline-start: -0.15em;
+  overflow: hidden;
+  mask-image: linear-gradient(
+    to bottom,
+    transparent,
+    #000 0.02em,
+    #000 calc(100% - 0.02em),
+    transparent
+  );
+}
+.bangumi-stage .music-title-wheel {
+  position: absolute;
+  top: 0;
+  left: 0.15em;
+  width: calc(100% - 0.3em);
+  height: 100%;
+}
+.bangumi-stage .music-title-face {
+  position: absolute;
+  inset: 0;
+  display: block;
+  white-space: pre;
+  clip-path: inset(0 -0.15em);
+}
+.bangumi-stage #selection-total.music-rolling-number,
+.bangumi-stage #genre-total.music-rolling-number {
+  display: inline-flex;
+  vertical-align: baseline;
+  font-variant-numeric: tabular-nums;
+}
+
 .bangumi-status {
   position: absolute;
   inset: 0;
-  z-index: 2;
+  z-index: 8;
   display: grid;
   place-items: center;
   margin: 0;
@@ -37,32 +500,220 @@
   text-align: center;
   pointer-events: none;
 }
-
 .bangumi-copyright {
   position: absolute;
   right: 0;
-  bottom: max(12px, env(safe-area-inset-bottom));
+  bottom: max(9px, env(safe-area-inset-bottom));
   left: 0;
-  z-index: 3;
+  z-index: 5;
   margin: 0;
-  padding: 0 24px;
-  color: #fff;
-  font-size: 11px;
+  padding: 0 20px;
+  color: var(--muted);
+  font-size: 8px;
   font-weight: 300;
   letter-spacing: 0.04em;
   line-height: 1.5;
   text-align: center;
   pointer-events: none;
 }
-
-.bangumi-copyright a {
+.bangumi-stage .bangumi-copyright a {
   color: inherit;
   pointer-events: auto;
   text-decoration: none;
 }
-
 .bangumi-copyright a:hover,
 .bangumi-copyright a:focus-visible {
   text-decoration: underline;
   text-underline-offset: 2px;
+}
+
+@media (min-width: 1700px) {
+  .bangumi-interface .album-callout {
+    top: 32%;
+  }
+  .bangumi-interface .music-detail #album-detail-content {
+    top: 180px;
+  }
+}
+@media (max-width: 1100px) {
+  .bangumi-interface .album-callout {
+    top: clamp(132px, 28vh, 240px);
+  }
+  .bangumi-interface .music-navigation {
+    grid-template-columns: 145px 1fr 1fr;
+    gap: 20px;
+  }
+  .bangumi-interface .music-counter b {
+    font-size: 42px;
+  }
+  .bangumi-interface .genre-stepper {
+    gap: 15px;
+  }
+  .bangumi-interface .genre-stepper > div {
+    min-width: 100px;
+  }
+  .bangumi-interface #album-detail-content {
+    left: 56%;
+    right: 4%;
+    top: 132px;
+  }
+  .bangumi-interface .music-back {
+    top: 96px;
+  }
+}
+@media (max-height: 650px) and (min-width: 701px) {
+  .bangumi-interface .album-callout {
+    top: 125px;
+  }
+  .bangumi-interface .selection-rule {
+    padding: 7px 0;
+    margin-bottom: 10px;
+  }
+  .bangumi-interface .selection-artist {
+    margin-bottom: 10px;
+  }
+  .bangumi-interface .open-album {
+    margin-top: 12px;
+    padding: 8px 0;
+  }
+}
+@media (max-width: 700px) {
+  .bangumi-interface .music-header {
+    top: 22px;
+    left: 20px;
+  }
+  .bangumi-interface .music-brand strong {
+    font-size: 22px;
+  }
+  .bangumi-interface .music-brand span {
+    font-size: 7px;
+    letter-spacing: 1px;
+  }
+  .bangumi-interface .music-browse-veil {
+    background: linear-gradient(
+      180deg,
+      transparent 29%,
+      var(--veil) 59%,
+      var(--page-bg) 80%
+    );
+  }
+  .bangumi-interface .album-callout {
+    top: auto;
+    right: 20px;
+    bottom: 126px;
+    left: 20px;
+    max-width: none;
+    height: min(33vh, 245px);
+    overflow-y: auto;
+    padding: 8px 4px;
+    background: linear-gradient(90deg, var(--veil), transparent);
+  }
+  .bangumi-interface .album-callout h1 {
+    font-size: var(--album-title-size, 25px);
+    margin-bottom: 9px;
+  }
+  .bangumi-interface .music-eyebrow {
+    font-size: 7px;
+  }
+  .bangumi-interface .selection-rule {
+    margin-bottom: 11px;
+    padding: 8px 0;
+    font-size: 8px;
+  }
+  .bangumi-interface .selection-artist {
+    margin-bottom: 10px;
+    font-size: 12px;
+  }
+  .bangumi-interface .selection-meta {
+    font-size: 9px;
+  }
+  .bangumi-interface .open-album {
+    margin-top: 13px;
+    padding-bottom: 7px;
+    font-size: 11px;
+  }
+  .bangumi-interface .music-navigation {
+    left: 20px;
+    right: 20px;
+    bottom: 53px;
+    grid-template-columns: 74px 1fr 1fr;
+    gap: 12px;
+  }
+  .bangumi-interface .music-counter b {
+    font-size: 34px;
+  }
+  .bangumi-interface .music-counter .music-eyebrow {
+    font-size: 6px;
+    letter-spacing: 1px;
+  }
+  .bangumi-interface .music-counter > div > span {
+    font-size: 9px;
+  }
+  .bangumi-interface .music-counter i {
+    margin-left: 0;
+  }
+  .bangumi-interface .album-stepper {
+    gap: 12px;
+  }
+  .bangumi-interface .album-stepper > button,
+  .bangumi-interface .genre-stepper > button {
+    font-size: 20px;
+  }
+  .bangumi-interface .genre-stepper {
+    gap: 8px;
+  }
+  .bangumi-interface .genre-stepper > div {
+    min-width: 76px;
+  }
+  .bangumi-interface .genre-stepper small {
+    font-size: 6px;
+  }
+  .bangumi-interface #genre-name {
+    font-size: 10px;
+  }
+  .bangumi-interface .music-keyhint {
+    display: none;
+  }
+  .bangumi-interface .music-back {
+    top: 102px;
+    left: 20px;
+  }
+  .bangumi-interface .card-caption {
+    top: 44%;
+    bottom: auto;
+    left: 20px;
+  }
+  .bangumi-interface .card-caption > small {
+    display: none;
+  }
+  .bangumi-interface #album-detail-content {
+    top: 50%;
+    right: 20px;
+    bottom: 45px;
+    left: 20px;
+    padding: 18px 12px 0;
+    background: linear-gradient(180deg, var(--veil), var(--page-bg) 48px);
+  }
+  .bangumi-interface #album-detail-content > h1 {
+    font-size: 25px;
+  }
+  .bangumi-interface .album-facts {
+    gap: 10px;
+  }
+  .bangumi-interface .bangumi-image-field img {
+    width: 50px;
+    height: 65px;
+  }
+  .bangumi-copyright {
+    font-size: 6px;
+    bottom: 8px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bangumi-stage *,
+  .bangumi-stage *::before,
+  .bangumi-stage *::after {
+    animation-duration: 0.01ms;
+    transition-duration: 0.01ms;
+  }
 }

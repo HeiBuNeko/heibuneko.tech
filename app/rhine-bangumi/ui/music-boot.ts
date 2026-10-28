@@ -70,7 +70,7 @@ export class MusicBoot {
     this.root.hidden = true;
     this.root.setAttribute("role", "dialog");
     this.root.setAttribute("aria-modal", "true");
-    this.root.setAttribute("aria-label", `音乐开场：${MUSIC_OPENING_CAPTION}`);
+    this.root.setAttribute("aria-label", `番剧开场：${MUSIC_OPENING_CAPTION}`);
     this.root.tabIndex = -1;
     this.opening = new MusicOpening(this.root);
     this.skipButton = document.createElement("button");
@@ -141,7 +141,7 @@ export class MusicBoot {
     this.root.hidden = false;
     this.root.dataset.phase = "slogan";
     this.root.dataset.appTime = String(startTime);
-    this.root.setAttribute("aria-label", `音乐开场：${MUSIC_OPENING_CAPTION}`);
+    this.root.setAttribute("aria-label", `番剧开场：${MUSIC_OPENING_CAPTION}`);
     this.skipButton.hidden = false;
     this.options.onStart?.();
     const reduced =
@@ -228,7 +228,7 @@ export class MusicBoot {
     this.parent.dataset.musicBoot = "revealing";
     this.root.hidden = false;
     this.skipButton.hidden = true;
-    this.root.setAttribute("aria-label", "正在显示音乐库");
+    this.root.setAttribute("aria-label", "正在显示番剧档案");
     this.root.focus({ preventScroll: true });
     const revision = ++this.revealRevision;
     const fade = (selector: string, delay = 0) => {

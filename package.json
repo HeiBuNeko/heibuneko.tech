@@ -17,6 +17,7 @@
   "dependencies": {
     "@heroui/react": "^3",
     "@heroui/styles": "^3",
+    "@kitlangton/rolling-number": "^0.4.1",
     "@react-three/drei": "^10.7.9",
     "@react-three/fiber": "^9.8.1",
     "@react-three/postprocessing": "^3.2.0",

@@ -3,7 +3,7 @@ import {
   MUSIC_BOOT_SCENE_START,
 } from "./music-boot-timing";
 
-export const MUSIC_OPENING_CAPTION = "ONE ALBUM AT A TIME";
+export const MUSIC_OPENING_CAPTION = "ONE BANGUMI AT A TIME";
 
 const unit = (time: number, from: number, to: number) =>
   Math.max(0, Math.min(1, (time - from) / (to - from)));

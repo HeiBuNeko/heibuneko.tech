@@ -2,6 +2,8 @@
 
 import { useEffect, useRef } from "react";
 import type { BangumiHandle } from "./mount";
+import "@kitlangton/rolling-number/styles.css";
+import "./styles/music-navigation-ruler.css";
 import "./styles/stage.css";
 
 type BangumiProps = {

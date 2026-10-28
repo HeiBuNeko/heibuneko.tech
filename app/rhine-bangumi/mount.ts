@@ -4,13 +4,14 @@ import {
   columnFiles,
   fileLocation,
   records,
-  setMusicAlbums,
+  setBangumi,
 } from "./data/data";
-import { demoAlbums, demoGenres } from "./data/demo-library";
+import { demoBangumi } from "./data/demo-library";
 import { viewportLayout } from "./motion/viewport-layout";
 import { DEFAULT_LIGHTING_PRESET } from "./rendering/music-row-lighting";
 import { qualityPresets } from "./rendering/render-quality";
 import { ArchiveScene } from "./rendering/scene";
+import { setupBangumiUI } from "./ui/bangumi-ui";
 import { MusicBoot } from "./ui/music-boot";
 import { mountMusicWheelNavigation } from "./ui/music-wheel-navigation";
 
@@ -20,7 +21,7 @@ export type BangumiHandle = {
 };
 
 export const mountBangumi = (root: HTMLElement): BangumiHandle => {
-  setMusicAlbums(demoAlbums, demoGenres, "genre");
+  setBangumi(demoBangumi);
 
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const coarse = window.matchMedia("(pointer: coarse)").matches;
@@ -29,7 +30,7 @@ export const mountBangumi = (root: HTMLElement): BangumiHandle => {
   canvasHost.style.opacity = "0";
   const status = document.createElement("p");
   status.className = "bangumi-status";
-  status.textContent = "正在载入三维专辑架";
+  status.textContent = "正在载入三维番剧架";
   const copyright = document.createElement("p");
   copyright.className = "bangumi-copyright music-bottomline";
   const credit = (name: string, href: string) => {
@@ -50,6 +51,7 @@ export const mountBangumi = (root: HTMLElement): BangumiHandle => {
   root.append(canvasHost, status, copyright);
 
   let scene: ArchiveScene | undefined;
+  let interfaceUI: ReturnType<typeof setupBangumiUI> | undefined;
   let boot: MusicBoot | undefined;
   let wheel: { dispose: () => void } | undefined;
   let frame = 0;
@@ -83,6 +85,7 @@ export const mountBangumi = (root: HTMLElement): BangumiHandle => {
     }
     selected = next;
     remember(next);
+    interfaceUI?.updateSelection(next, navigation);
   };
 
   const stepAlbum = (direction: number) => {
@@ -120,20 +123,24 @@ export const mountBangumi = (root: HTMLElement): BangumiHandle => {
       return;
     mode = "detail";
     scene.setMode("detail");
+    if (placed()) interfaceUI?.showDetail();
   };
 
   const closeCover = () => {
     if (!scene || mode !== "detail") return;
     mode = "archive";
     scene.setMode("archive");
+    interfaceUI?.showBrowse();
   };
 
   const fit = () => {
-    root.dataset.layout = viewportLayout(
+    const kind = viewportLayout(
       root.clientWidth,
       root.clientHeight,
       coarse,
     ).kind;
+    root.dataset.layout = kind;
+    interfaceUI?.setLayout(kind);
     scene?.resize();
   };
 
@@ -148,6 +155,7 @@ export const mountBangumi = (root: HTMLElement): BangumiHandle => {
     const opening = boot?.update(now / 1000);
     if (opening?.renderScene !== false)
       scene.update(now / 1000, opening?.cinema);
+    if (mode === "detail" && placed()) interfaceUI?.showDetail();
     frame = requestAnimationFrame(loop);
   };
 
@@ -206,6 +214,14 @@ export const mountBangumi = (root: HTMLElement): BangumiHandle => {
     else resume();
   };
 
+  interfaceUI = setupBangumiUI(root, reduced, {
+    select: go,
+    step: stepAlbum,
+    month: stepGenre,
+    open: openCover,
+    back: closeCover,
+  });
+
   const observer = new ResizeObserver(() => fit());
   observer.observe(root);
   window.addEventListener("keydown", onKey);
@@ -232,7 +248,7 @@ export const mountBangumi = (root: HTMLElement): BangumiHandle => {
       scene.setQuality(qualityPresets.original);
       scene.renderer.domElement.setAttribute(
         "aria-label",
-        "三维专辑阵列，左右切流派，上下切专辑",
+        "三维番剧阵列，左右切月份，上下切番剧",
       );
       await scene.prepareMusicRenderer();
       if (disposed) return;
@@ -246,6 +262,7 @@ export const mountBangumi = (root: HTMLElement): BangumiHandle => {
           if (reason === "skip") scene?.showMusicArchiveImmediately(now);
           else scene?.finishMusicIntro(now);
           mode = "archive";
+          interfaceUI?.showBrowse();
         },
       });
       scene.onSelect = (index, cell) => {
@@ -296,6 +313,7 @@ export const mountBangumi = (root: HTMLElement): BangumiHandle => {
       document.removeEventListener("visibilitychange", onVisibility);
       wheel?.dispose();
       boot?.dispose();
+      interfaceUI?.dispose();
       scene?.dispose();
       root.replaceChildren();
     },

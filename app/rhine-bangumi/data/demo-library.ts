@@ -1,47 +1,56 @@
-import type { MusicAlbum, MusicGenre } from "./music-types";
-export const demoGenres: MusicGenre[] = [
-  { id: "ambient", name: "氛围音乐" },
-  { id: "instrumental", name: "器乐" },
-];
-/** Visual samples only. Never inserted into the user's actual music index. */
-export const demoAlbums: MusicAlbum[] = [
+export interface Bangumi {
+  date: string;
+  platform: string;
+  image: string;
+  summary: string;
+  name: string;
+  name_cn: string;
+}
+
+export const demoBangumi: Bangumi[] = [
   {
-    id: "demo-sun",
-    title: "日光留声",
-    artist: "RHINE · 演示封面",
-    genreId: "ambient",
-    year: 2026,
-    coverUrl: "/rhine-bangumi/demo-covers/square.png",
-    rawGenres: ["Ambient"],
-    folder: "演示专辑 · 方形封面",
-    tracks: [],
-    producers: [],
-    offline: false,
+    date: "2026-10-03",
+    platform: "TV",
+    image: "https://lain.bgm.tv/pic/cover/l/17/c7/554779_oPitO.jpg",
+    summary:
+      "文学少年水之江梅理科成绩极差，面临留级危机，被迫加入学生会挽救学分。怎知藤成学园的学生会毫不正常，聚集了纯情闷骚的会长、毒舌学长、腹黑会计与不幸庶务等各路奇葩。在这些怪咖成员的环绕下，阿梅随即展开了一段充满青春骚动、爆笑且色彩缤纷的欢乐校园生活。\r\n\r\n\r\n\r\n[简介原文]\r\nここは町はずれにある進学校、私立藤成学園。高等部１年の水之江梅は文学賞などを多数受賞したりと国語の成績は抜群な一方、理系科目は進級に響くほど壊滅的。留年回避のため、内申点をあげるため生徒会の役員となることに。\r\nしかし、彼が入った生徒会にはカリスマむっつり生徒会長・古都吹寿子、怖くて優しい清楚な会計・照井有栖。生意気可愛い男の子・尾鳥たん、小っちゃな捨て猫庶務・陸奥こまろと何やら変わった子たちが勢揃い！\r\nそんなキュートでちぐはぐな面々が織り成す、ドタバタハートフル生徒会ラブ＆コメディ、はじまりです！",
+    name: "生徒会にも穴はある！",
+    name_cn: "学生会也有洞！",
   },
   {
-    id: "demo-night",
-    title: "夜间航线",
-    artist: "RHINE · 演示封面",
-    genreId: "ambient",
-    year: 2026,
-    coverUrl: "/rhine-bangumi/demo-covers/portrait.png",
-    rawGenres: ["Ambient"],
-    folder: "演示专辑 · 竖版封面",
-    tracks: [],
-    producers: [],
-    offline: false,
+    date: "2026-07-02",
+    platform: "TV",
+    image: "https://lain.bgm.tv/pic/cover/l/1c/e4/583729_KxOZV.jpg",
+    summary:
+      "「哔呀啊啊啊啊——！！！」\r\n\r\n为了乐团出道而突然集结的团员们！\r\n虽然每个人都拥有耀眼夺目的个性与实力，但现在的她们根本无法进行任何乐团活动。\r\n这群女孩，以及这个乐团，究竟能不能顺利存活下去呢！？\r\n\r\n「奋力挣扎吧，哪怕乐声止息。」\r\n\r\n\r\n\r\n[简介原文]\r\nピャーーーーっ！！！\r\n\r\nバンドとしてデビューするために突然集められたメンバーたち、\r\nそれぞれの個性や能力には光るものがあるが、とてもバンド活動ができる状態ではない。\r\n果たして彼女たちは、バンドは、生き残っていけるのか！？\r\n\r\n「音が止んでも、あらがえ」",
+    name: "BanG Dream! ゆめ∞みた",
+    name_cn: "BanG Dream! YUME∞MITA",
   },
   {
-    id: "demo-mountain",
-    title: "远山来信",
-    artist: "RHINE · 演示封面",
-    genreId: "instrumental",
-    year: 2026,
-    coverUrl: "/rhine-bangumi/demo-covers/landscape.png",
-    rawGenres: ["Instrumental"],
-    folder: "演示专辑 · 横版封面",
-    tracks: [],
-    producers: [],
-    offline: false,
+    date: "2026-07-02",
+    platform: "TV",
+    image: "https://lain.bgm.tv/pic/cover/l/e3/74/617123_PaMs9.jpg",
+    summary:
+      "是恋爱，还是破坏？\r\n女高中生赤石黑绘饱受原因不明的疾病所苦。因为个性笨拙，一直以来都与他人保持距离。在因缘际会之下，她喜欢上了班上颇受欢迎的男生・南新汰。当少女察觉到自己的恋心时，沉睡的力量也随之觉醒……\r\n恋爱与理智的对抗，颠覆少女漫画常识的震撼发展，即将席卷全日本！！\r\n\r\n\r\n\r\n[简介原文]\r\n恋か、破壊か――。\r\n原因不明の病に悩まされている女子高生・赤石黒絵（クロエ）。不器用で人との交流を避けて生きてきた彼女は、とある出会いでクラスのモテ男子・南新汰に恋をする。少女が恋心に気づいたとき、眠っていた力が解放される...。\r\n争う恋と理性――。少女漫画の常識を覆す、衝撃の展開が日本を襲う!!",
+    name: "乙女怪獣キャラメリゼ",
+    name_cn: "少女怪兽焦糖味",
+  },
+  {
+    date: "2026-07-02",
+    platform: "TV",
+    image: "https://lain.bgm.tv/pic/cover/l/6a/b3/622206_dpWcC.jpg",
+    summary:
+      "在一个人类与兽人共存的世界里，住着一只整天抽着烟、过着懒散生活的兽人——「尼古喵喵」。没钱！没生活能力！简直是个废物！礼仪和道德早就跟烟蒂一起被丢进垃圾桶了。一只又臭、又脏、又懒惰的猫。每天都过着抽烟、吐烟、闲聊，日复一日的生活。虽然很邋遢，但却有点疗愈！一群让人讨厌不起来的废渣猫猫们烟雾缭绕的日常。\r\n\r\n\r\n\r\n[简介原文]\r\n人間と獣人が共存する世界で、タバコを吸ってダラダラ生きる獣人・ヤニねこ。\r\n金なし！生活力なし！ろくでなし！マナーやモラルは吸い殻と一緒に捨ててきた。\r\nヤニ臭くて、汚くて、怠惰でクズ。吸って、吐いて、ダベって、燃えて。だけど、それなりに充実した日々を過ごしてます。\r\nけっこう汚いけど、ちょっとだけ励まされる！SNSでバズり散らかしたマンガが、まさかのTVアニメ化に挑む！\r\n放送できなかったらごめんにゃさい！なんだか憎めないクズねこたちがおくる、ヤニまみれな日常をゆる〜く見守ってください。",
+    name: "ヤニねこ",
+    name_cn: "尼古喵喵",
+  },
+  {
+    date: "2026-10-01",
+    platform: "TV",
+    image: "https://lain.bgm.tv/pic/cover/l/d3/99/622288_nmbC3.jpg",
+    summary:
+      "大学生福贺久留美终于迎来了梦寐以求的FX（外汇保证金交易）出道。她的目标是夺回过世母亲因为FX赔掉的2000万日圆。「看我轻松把它赚回来！」发下豪语的她，一头栽进了这个随时从天堂跌入地狱的世界。未实现亏损、强制平仓、不能平复的心情…… 即便如此，她还是想买、想卖、想赚钱！久留美究竟能不能在这疯狂的世界中存活下来呢？\r\n\r\n\r\n\r\n[简介原文]\r\n念願のFX（外国為替証拠金取引）デビューを果した大学生・福賀くるみ。その理由は、亡き母がFXで溶かした2000万円を取り戻すため。\r\n「2000万円くらい、簡単に取り返せるようになってやる！」\r\nそう誓った彼女が飛び込んだ先は、一瞬で天国にも地獄にもひっくり返る世界。含み損、ロスカット、止まらない鼓動……。それでも買いたい、売りたい、稼ぎたい！\r\n萌智子（もちこ）、芽吹（めぶき）、やす子―― クセ強なFX戦士たちも加わり、相場はますますヒートアップ！\r\nチャートに一喜一憂する、かわいくてちょっぴり（!?）危険なマネーゲーム。くるみたちは、この荒れ狂う世界を生き残れるのか――!?",
+    name: "FX戦士くるみちゃん",
+    name_cn: "FX战士久留美",
   },
 ];

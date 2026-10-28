@@ -383,9 +383,9 @@ export class CoverAtlas {
     if (key === undefined) {
       key = JSON.stringify([
         record.id,
-        record.album?.coverUrl,
+        record.coverUrl,
         record.title,
-        record.album?.artist,
+        record.bangumi.name_cn,
       ]);
       this.recordKeys.set(record, key);
     }
@@ -421,7 +421,7 @@ export class CoverAtlas {
   setSlot(slot: number, record: ArchiveRecord | undefined) {
     const key = this.recordKey(record);
     if (this.slotKeys[slot] === key) return;
-    const image = this.cachedImage(record?.album?.coverUrl);
+    const image = this.cachedImage(record?.coverUrl);
     // Reuse the target album's existing print before assigning this slot's
     // identity; otherwise the lookup could copy the slot's previous album.
     if (image) paintCover(this.tileCanvas, image);
@@ -450,7 +450,7 @@ export class CoverAtlas {
     };
     draw();
     if (!image)
-      void this.loadImage(record?.album?.coverUrl).then((loaded) => {
+      void this.loadImage(record?.coverUrl).then((loaded) => {
         if (loaded) draw(loaded);
       });
   }
@@ -460,8 +460,8 @@ export class CoverAtlas {
     const key = this.recordKey(record);
     if (this.selectedKey === key) return;
     const generation = this.generation;
-    const cached = this.cachedImage(record?.album?.coverUrl);
-    const coverUrl = record?.album?.coverUrl;
+    const cached = this.cachedImage(record?.coverUrl);
+    const coverUrl = record?.coverUrl;
     if (!coverUrl || (this.decodedImages.has(coverUrl) && !cached))
       paintCover(this.selectedCanvas);
     else if (cached) paintCover(this.selectedCanvas, cached);
@@ -475,7 +475,7 @@ export class CoverAtlas {
         Math.min(COVER_PAINT_SIZE, Math.max(cached.width, cached.height))
     )
       return;
-    const image = await this.loadImage(record?.album?.coverUrl, true);
+    const image = await this.loadImage(record?.coverUrl, true);
     if (
       this.disposed ||
       generation !== this.generation ||
@@ -503,7 +503,7 @@ export class CoverAtlas {
     (mesh.material as THREE.MeshLambertMaterial).map = texture;
     const record = this.selectedRecord;
     mesh.userData.coverDisposed = false;
-    void this.loadImage(record?.album?.coverUrl, true).then((image) => {
+    void this.loadImage(record?.coverUrl, true).then((image) => {
       if (mesh.userData.coverDisposed || this.disposed) return;
       // A pending original may fail after the selection has moved on. Clear
       // the snapshot instead of keeping a temporary shelf tile.

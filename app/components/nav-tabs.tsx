@@ -24,7 +24,7 @@ export const NavTabs = ({ tab, onSelect }: NavTabsProps) => {
           <button
             key={item.id}
             type="button"
-            className="relative bg-transparent p-0 font-thin text-sm text-white"
+            className="relative bg-transparent p-0 text-sm font-thin text-white"
             onClick={() => onSelect(item.id)}
           >
             <motion.span className="inline-block" whileHover={{ scale: 1.06 }}>

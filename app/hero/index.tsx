@@ -27,7 +27,7 @@ export const Hero = ({ entrance }: HeroProps) => {
 
         <footer className="flex flex-col justify-between gap-1">
           <Artist />
-          <p className="text-center font-thin text-white text-xs">
+          <p className="text-center text-xs font-thin text-white">
             © Atlantis National Geographic · Designed by HeiBuNeko · Built with
             Next.js
           </p>

@@ -5,7 +5,7 @@ import { motion } from "motion/react";
 export const Splash = () => {
   return (
     <motion.div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black font-thin text-6xl text-white"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black text-6xl font-thin text-white"
       animate={{
         display: "none",
         opacity: 0,

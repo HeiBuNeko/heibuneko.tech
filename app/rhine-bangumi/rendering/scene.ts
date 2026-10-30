@@ -43,7 +43,6 @@ import {
   bangumiIntroPose,
   bangumiIntroWave,
 } from "../motion/bangumi-intro-motion";
-import { getBangumiMotionSpeed } from "../motion/bangumi-motion";
 import { DecryptionController } from "../motion/decryption";
 import {
   archiveWave,
@@ -60,9 +59,7 @@ import {
 import { archiveFraming, swipeDirection } from "../motion/viewport-layout";
 import { CardAppearance } from "./appearance";
 import { createArchiveEnvironment } from "./archive-lighting";
-import { assetUrl as publicAsset } from "./asset-url";
 import { bangumiFogDistances } from "./bangumi-atmosphere";
-import { BANGUMI_CASE_ASSET } from "./bangumi-case-asset";
 import { BangumiSelectionLighting } from "./bangumi-lighting";
 import {
   BANGUMI_COLUMN_SPACING,
@@ -76,6 +73,8 @@ import { applyTextureQuality, RENDER_QUALITY } from "./render-quality";
 
 export const BANGUMI_PREVIEW_LIFT = 0.9;
 export const BANGUMI_INSPECTION_LIFT = BANGUMI_MODEL.height + 0.12;
+const BANGUMI_CASE_URL =
+  "/rhine-bangumi/assets/music-case-v043.glb?v=f27162cdb5a3";
 const BANGUMI_DETAIL_ELEVATION = THREE.MathUtils.degToRad(20);
 const BANGUMI_ALBUM_SWITCH_RATE = 9;
 /**
@@ -84,7 +83,6 @@ const BANGUMI_ALBUM_SWITCH_RATE = 9;
  * R3F 持有渲染器和帧循环；本类管理手动创建的图集、材质副本、环境贴图和后处理资源。
  */
 export class ArchiveScene {
-  private readonly columnSpacing = BANGUMI_COLUMN_SPACING;
   readonly renderer: THREE.WebGLRenderer;
   readonly scene: THREE.Scene;
   readonly content: THREE.Group;
@@ -237,12 +235,11 @@ export class ArchiveScene {
    *
    * 模型就绪后建立阵列和封面图集；加载失败会向调用方传播异常。
    *
-   * @param assetUrl 盒体模型的可选资源地址。
    * @param selectedIndex 初始选中的番剧索引。
    * @throws 模型请求或解析失败时传播加载异常。
    */
-  async load(assetUrl = publicAsset(BANGUMI_CASE_ASSET), selectedIndex = 0) {
-    const gltf = await new GLTFLoader().loadAsync(assetUrl);
+  async load(selectedIndex = 0) {
+    const gltf = await new GLTFLoader().loadAsync(BANGUMI_CASE_URL);
     if (this.disposed) return;
     gltf.scene.updateMatrixWorld(true);
     const meshes: THREE.Mesh[] = [];
@@ -416,7 +413,7 @@ export class ArchiveScene {
     this.shoulder = { value: location.row, velocity: 0 };
     this.laneFocus = { value: location.lane, velocity: 0 };
     this.columnCamera = {
-      value: (location.lane - 2) * this.columnSpacing,
+      value: (location.lane - 2) * BANGUMI_COLUMN_SPACING,
       velocity: 0,
     };
     await this.covers.select(records[index]);
@@ -519,7 +516,7 @@ export class ArchiveScene {
       ? 1
       : bangumiOverviewColumnExtent(
           lane,
-          this.columnCamera.value / this.columnSpacing + 2,
+          this.columnCamera.value / BANGUMI_COLUMN_SPACING + 2,
           this.bangumiOverview.value,
         );
   }
@@ -565,7 +562,7 @@ export class ArchiveScene {
     const copies = this.bangumiOverviewCopies;
     const width = this.container.clientWidth,
       height = this.container.clientHeight;
-    const centerLane = this.columnCamera.value / this.columnSpacing + 2;
+    const centerLane = this.columnCamera.value / BANGUMI_COLUMN_SPACING + 2;
     const selectedLane =
       ((this.selectedCell.lane % archiveColumns.length) +
         archiveColumns.length) %
@@ -588,7 +585,7 @@ export class ArchiveScene {
       if (!count) return [];
       const extent = this.bangumiColumnExtent(physical);
       const point = new THREE.Vector3(
-        (physical - 2) * this.columnSpacing - this.columnCamera.value,
+        (physical - 2) * BANGUMI_COLUMN_SPACING - this.columnCamera.value,
         -4.6 +
           BANGUMI_MODEL.center.y -
           BANGUMI_MODEL.height / 2 +
@@ -705,7 +702,7 @@ export class ArchiveScene {
   }
   private cellPosition(cell: ArchiveCell) {
     return new THREE.Vector3(
-      (cell.lane - 2) * this.columnSpacing,
+      (cell.lane - 2) * BANGUMI_COLUMN_SPACING,
       -4.6,
       (cell.row - 15.5) * ROW_SPACING,
     );
@@ -740,14 +737,14 @@ export class ArchiveScene {
     this.coordinateOrigin.row += shift.row;
     this.laneFocus.value -= shift.lane;
     this.shoulder.value -= shift.row;
-    this.columnCamera.value -= shift.lane * this.columnSpacing;
+    this.columnCamera.value -= shift.lane * BANGUMI_COLUMN_SPACING;
     if (shift.lane) {
       for (const [lane, physical] of this.bangumiOverviewCopies)
         this.bangumiOverviewCopies.set(lane, physical - shift.lane);
     }
     this.rail.value += shift.row * ROW_SPACING;
     this.bangumiArchiveMotion.translate({
-      column: -shift.lane * this.columnSpacing,
+      column: -shift.lane * BANGUMI_COLUMN_SPACING,
       rail: shift.row * ROW_SPACING,
       lane: -shift.lane,
       shoulder: -shift.row,
@@ -1094,14 +1091,11 @@ export class ArchiveScene {
     render = true,
   ) {
     if (this.disposed) return;
-    const realDt = Math.max(0, Math.min(time - this.last, 0.05));
-    const speed = !cinematic && !this.reduced ? getBangumiMotionSpeed() : 1;
-    const dt = realDt * speed;
+    const dt = Math.max(0, Math.min(time - this.last, 0.05));
     this.last = time;
     this.clock = !cinematic ? this.clock + dt : time;
     const motionTime = this.clock;
     if (!this.loaded) return;
-    const previewLift = BANGUMI_PREVIEW_LIFT;
     const overview = !cinematic
       ? this.bangumiOverview.update(dt, this.reduced)
       : 0;
@@ -1221,7 +1215,7 @@ export class ArchiveScene {
     }
     const trackX = cinematic && !bangumiIntro ? 0 : this.columnCamera.value;
     const center = {
-      lane: this.columnCamera.value / this.columnSpacing + 2,
+      lane: this.columnCamera.value / BANGUMI_COLUMN_SPACING + 2,
       row: (-this.rail.value - 2.17) / ROW_SPACING + 15.5,
     };
     for (let i = 0; i < this.positions.length; i++) {
@@ -1230,7 +1224,7 @@ export class ArchiveScene {
           ? poolCell(i, this.poolRows)
           : visibleCell(i, center, this.poolRows);
       this.positions[i].set(
-        (this.cells[i].lane - 2) * this.columnSpacing,
+        (this.cells[i].lane - 2) * BANGUMI_COLUMN_SPACING,
         -4.6,
         (this.cells[i].row - 15.5) * ROW_SPACING,
       );
@@ -1346,7 +1340,7 @@ export class ArchiveScene {
             ? !this.reduced && aligningNeighbor
               ? 0
               : BANGUMI_INSPECTION_LIFT
-            : previewLift * this.targetReveal;
+            : BANGUMI_PREVIEW_LIFT * this.targetReveal;
           if (this.reduced) this.lift = { value: liftTarget, velocity: 0 };
           else
             damp(
@@ -1360,7 +1354,7 @@ export class ArchiveScene {
           !this.bangumiPlacement.settled ||
           this.targetDetail
         ) {
-          const restingLift = previewLift * this.targetReveal;
+          const restingLift = BANGUMI_PREVIEW_LIFT * this.targetReveal;
           this.lift.value = THREE.MathUtils.lerp(
             restingLift,
             BANGUMI_INSPECTION_LIFT,
@@ -1381,7 +1375,7 @@ export class ArchiveScene {
                 Math.abs(o.cell.row - selectedRow) < 5,
             )
               ? 0
-              : previewLift * this.targetReveal,
+              : BANGUMI_PREVIEW_LIFT * this.targetReveal,
             this.reduced ? 35 : 4.2,
             dt,
           );
@@ -1730,7 +1724,7 @@ export class ArchiveScene {
         )
         .normalize();
       cameraAim.lerp(
-        new THREE.Vector3(wide.aimColumns * this.columnSpacing, -1.8, -1.5),
+        new THREE.Vector3(wide.aimColumns * BANGUMI_COLUMN_SPACING, -1.8, -1.5),
         overview,
       );
       framing.span = THREE.MathUtils.lerp(framing.span, wide.span, overview);
@@ -1762,7 +1756,7 @@ export class ArchiveScene {
       const detailTarget = this.bangumiPresentation.holdsDetail ? 1 : 0;
       const liftTarget = this.bangumiPresentation.holdsDetail
         ? BANGUMI_INSPECTION_LIFT
-        : previewLift * this.targetReveal;
+        : BANGUMI_PREVIEW_LIFT * this.targetReveal;
       const tracksSettled = bangumiArchiveTracksSettled(
         {
           rail: this.rail,

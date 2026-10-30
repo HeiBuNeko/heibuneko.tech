@@ -192,7 +192,7 @@ export function setupBangumiUI(
       files.map((file) => ({
         index: file,
         id: records[file].id,
-        title: records[file].title,
+        title: records[file].bangumi.name,
       })),
       index,
       reduced,

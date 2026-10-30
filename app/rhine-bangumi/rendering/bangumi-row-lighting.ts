@@ -1,4 +1,4 @@
-import { bangumiIntroLightRow } from "../motion/bangumi-intro-motion";
+import { ROW_SPACING } from "../archive/archive-loop";
 import { BANGUMI_COLUMN_SPACING } from "./bangumi-model";
 
 export type RowLightingFrame = {
@@ -54,10 +54,8 @@ export function followRowLight(
   return state.value;
 }
 
-export const introRowOffset = bangumiIntroLightRow;
-
 export const ROW_LIGHTING = {
-  rowSpacing: 0.62,
+  rowSpacing: ROW_SPACING,
   laneSpacing: BANGUMI_COLUMN_SPACING,
   laneRadius: 27,
   gaussianHalfMaximum: Math.LN2,

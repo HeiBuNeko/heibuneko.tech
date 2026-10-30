@@ -1,15 +1,10 @@
-import {
-  followBangumiMotionSpeed,
-  getBangumiMotionSpeed,
-} from "../motion/bangumi-motion";
-
 const enterEase = "cubic-bezier(0.22, 1, 0.36, 1)";
 const exitEase = "cubic-bezier(0.4, 0, 1, 1)";
 
 /**
  * 创建可中断的界面显隐过渡。
  *
- * 使用 Web Animations API 保持反向切换的当前透明度，并跟随全局动画速度。
+ * 使用 Web Animations API 保持反向切换的当前透明度。
  *
  * @param root 当前场景或界面的根 DOM 元素。
  * @param panel 参与过渡的内容元素。
@@ -58,9 +53,7 @@ export function createSurfaceTransition(
       enterDelay > 0
     ) {
       const revision = ++revisionCounter;
-      const animation = followBangumiMotionSpeed(
-        root.animate([], { duration: enterDelay }),
-      );
+      const animation = root.animate([], { duration: enterDelay });
       const start = (finishImmediately: boolean) => {
         if (revision !== revisionCounter || enterLead?.animation !== animation)
           return;
@@ -107,7 +100,7 @@ export function createSurfaceTransition(
     );
     exitRate = Math.max(exitRate, remaining / milliseconds);
     animations.forEach((animation) => {
-      animation.updatePlaybackRate(getBangumiMotionSpeed() * exitRate);
+      animation.updatePlaybackRate(exitRate);
     });
   }
 
@@ -198,35 +191,29 @@ export function createSurfaceTransition(
       fill: "both",
     };
     const fades = fadeTargets.map((target, index) =>
-      followBangumiMotionSpeed(
-        target.animate(
-          [{ opacity: opacities[index] }, { opacity: show ? 1 : 0 }],
-          options,
-        ),
-        () => exitRate,
+      target.animate(
+        [{ opacity: opacities[index] }, { opacity: show ? 1 : 0 }],
+        options,
       ),
     );
     animations.push(...fades);
     if (panel) {
       animations.push(
-        followBangumiMotionSpeed(
-          panel.animate(
-            [
-              { transform },
-              {
-                transform:
-                  direction === "right"
-                    ? show
-                      ? "translateX(0)"
-                      : "translateX(32px)"
-                    : show
-                      ? "translateY(0)"
-                      : "translateY(6px)",
-              },
-            ],
-            options,
-          ),
-          () => exitRate,
+        panel.animate(
+          [
+            { transform },
+            {
+              transform:
+                direction === "right"
+                  ? show
+                    ? "translateX(0)"
+                    : "translateX(32px)"
+                  : show
+                    ? "translateY(0)"
+                    : "translateY(6px)",
+            },
+          ],
+          options,
         ),
       );
     }

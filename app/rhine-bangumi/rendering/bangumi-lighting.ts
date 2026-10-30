@@ -1,10 +1,10 @@
 import * as THREE from "three";
+import { bangumiIntroLightRow } from "../motion/bangumi-intro-motion";
 import { BANGUMI_MODEL } from "./bangumi-model";
 import type { RowLightingFrame } from "./bangumi-row-lighting";
 import {
   DEFAULT_LIGHTING_PRESET,
   followRowLight,
-  introRowOffset,
   ROW_LIGHTING,
   ROW_LIGHTING_GLSL,
 } from "./bangumi-row-lighting";
@@ -16,7 +16,6 @@ import {
  */
 export class BangumiSelectionLighting {
   readonly spot = new THREE.SpotLight("#ffe3b2", 70 * 64, 0, 0.32, 0.95, 2);
-  private readonly experiment = DEFAULT_LIGHTING_PRESET;
   private readonly rowSettings = {
     value: new THREE.Vector3(
       DEFAULT_LIGHTING_PRESET.strength,
@@ -324,16 +323,17 @@ export class BangumiSelectionLighting {
         this.rowMotion,
         targetRow,
         dt,
-        this.experiment.transitionDuration,
+        DEFAULT_LIGHTING_PRESET.transitionDuration,
       );
       followRowLight(
         this.laneMotion,
         targetLane,
         dt,
-        this.experiment.transitionDuration,
+        DEFAULT_LIGHTING_PRESET.transitionDuration,
       );
     }
-    if (opening) this.rowMotion.value = targetRow + introRowOffset(introTime);
+    if (opening)
+      this.rowMotion.value = targetRow + bangumiIntroLightRow(introTime);
     this.rowIntro = opening;
     this.rowInitialized = true;
     this.rowColumn.value.copy(this.worldOrigin);

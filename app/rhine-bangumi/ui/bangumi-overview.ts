@@ -56,7 +56,7 @@ export function setupBangumiOverview(surface: HTMLElement, actions: Actions) {
     button.className = "overview-record";
     button.dataset.overviewRecord = String(index);
     const title = document.createElement("strong");
-    title.textContent = record.title;
+    title.textContent = record.bangumi.name;
     const meta = document.createElement("small");
     meta.textContent = `${record.category} · ${record.bangumi.platform}`;
     button.append(title, meta);

@@ -44,17 +44,6 @@ export function settlingWave(distance: number, time: number) {
   const ring = age > 0 ? Math.sin(age * 5.1) * Math.exp(-age * 1.3) : 0;
   return envelope * (rise + 0.18 * ring * smooth(age / 0.16));
 }
-export function baselineSelectionWave(distance: number, age: number) {
-  if (age < 0 || age > 3.2) return 0;
-  return (
-    0.8 *
-    smooth(age / 0.2) *
-    Math.exp(-age * 1.15) *
-    Math.cos((distance - age * 8) * 0.58) *
-    bell(distance - age * 8, 3.4)
-  );
-}
-
 export function bangumiSelectionWave(distance: number, age: number) {
   if (age < 0 || age > 3.2) return 0;
   return (
@@ -63,12 +52,6 @@ export function bangumiSelectionWave(distance: number, age: number) {
     Math.exp(-age * 1.35) *
     Math.cos((distance - age * 5.5) * 0.58) *
     bell(distance - age * 5.5, 3.4)
-  );
-}
-
-export function rippleEnvelope(distance: number, age: number) {
-  return (
-    smooth(distance / 2.5) * Math.max(0, Math.cos((distance - age * 8) * 0.58))
   );
 }
 
@@ -101,7 +84,6 @@ export function cinematicField(
   );
 }
 
-export const INSPECTION_LIFT = 4.05;
 export const ALIGNMENT_EPSILON = 0.001;
 export function returnStep(angle: number, dt: number, reduced = false) {
   const next = angle * Math.exp(-dt * (reduced ? 35 : 7));

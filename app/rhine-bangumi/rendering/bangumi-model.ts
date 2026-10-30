@@ -10,12 +10,6 @@ export const BANGUMI_MODEL = {
 export const BANGUMI_COLUMN_GAP = 0.75;
 export const BANGUMI_COLUMN_SPACING = BANGUMI_MODEL.width + BANGUMI_COLUMN_GAP;
 
-const bindingWidth = 4.45 * (0.26 / 4.3);
-export const BANGUMI_CASE_WIDTHS = {
-  spine: bindingWidth,
-  glass: BANGUMI_MODEL.width - bindingWidth,
-} as const;
-
 export const BANGUMI_COVER = {
   width: 2.98,
   height: 2.98,

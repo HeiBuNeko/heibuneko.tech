@@ -72,15 +72,6 @@ const RETRACT: readonly Knot[] = [
   [38.84, 0],
 ];
 
-export const SCAN_FROM = [-1.6, 0.5] as const;
-export const SCAN_TO = [1.98, 3.24] as const;
-export const SCAN_CORNERS = [
-  [-1.88, 3.2],
-  [2.14, 3.36],
-  [-1.77, 0.36],
-  [2.17, 0.65],
-] as const;
-
 /**
  * 计算封面解密动画在指定时刻的状态。
  *

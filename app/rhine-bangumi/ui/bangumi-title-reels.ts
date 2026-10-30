@@ -1,5 +1,3 @@
-import { followBangumiMotionSpeed } from "../motion/bangumi-motion";
-
 export type TitleGlyph = {
   key: string;
   text: string;
@@ -116,12 +114,10 @@ function createTitleTrack(
     const frames = Array.from({ length: STEPS + 1 }, (_, index) => ({
       [property]: format(at(index / STEPS).value),
     }));
-    const current = followBangumiMotionSpeed(
-      element.animate(frames, {
-        duration: DURATION,
-        easing: "linear",
-      }),
-    );
+    const current = element.animate(frames, {
+      duration: DURATION,
+      easing: "linear",
+    });
     animation = current;
     const now = element.ownerDocument.timeline.currentTime;
     if (typeof now === "number") current.startTime = now;

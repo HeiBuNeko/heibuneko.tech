@@ -1,6 +1,5 @@
 import "../styles/bangumi-boot.css";
 import { bangumiIntroFrame } from "../motion/bangumi-intro-motion";
-import { followBangumiMotionSpeed } from "../motion/bangumi-motion";
 import {
   BANGUMI_BOOT_END_TIME,
   BANGUMI_BOOT_SCENE_REVEAL_TIME,
@@ -266,7 +265,7 @@ export class BangumiBoot {
     /**
      * 按开场时间轴安排遮罩淡入淡出。
      *
-     * 使用全局动态速度，避免跳过时留下仍运行的动画。
+     * 跳过时取消仍在运行的动画。
      *
      * @param selector 需要执行淡入淡出的目标元素选择器。
      * @param delay 淡入开始前的延迟，单位为毫秒。
@@ -275,16 +274,14 @@ export class BangumiBoot {
       const node = this.parent.querySelector<HTMLElement>(selector);
       if (!node || node.hidden) return;
       this.revealAnimations.push(
-        followBangumiMotionSpeed(
-          node.animate(
-            [{ opacity: 0 }, { opacity: getComputedStyle(node).opacity }],
-            {
-              duration: REVEAL_DURATION - delay,
-              delay,
-              easing: REVEAL_EASE,
-              fill: "both",
-            },
-          ),
+        node.animate(
+          [{ opacity: 0 }, { opacity: getComputedStyle(node).opacity }],
+          {
+            duration: REVEAL_DURATION - delay,
+            delay,
+            easing: REVEAL_EASE,
+            fill: "both",
+          },
         ),
       );
     };
@@ -307,19 +304,17 @@ export class BangumiBoot {
       const node = this.parent.querySelector<HTMLElement>(selector);
       if (!node) continue;
       this.revealAnimations.push(
-        followBangumiMotionSpeed(
-          node.animate(
-            [
-              { translate: "0 8px" },
-              { translate: getComputedStyle(node).translate },
-            ],
-            {
-              duration: REVEAL_DURATION - delay,
-              delay,
-              easing: REVEAL_EASE,
-              fill: "both",
-            },
-          ),
+        node.animate(
+          [
+            { translate: "0 8px" },
+            { translate: getComputedStyle(node).translate },
+          ],
+          {
+            duration: REVEAL_DURATION - delay,
+            delay,
+            easing: REVEAL_EASE,
+            fill: "both",
+          },
         ),
       );
     }

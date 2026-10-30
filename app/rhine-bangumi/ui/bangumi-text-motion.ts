@@ -3,10 +3,6 @@ import {
   createRollingText,
 } from "@kitlangton/rolling-number";
 import type { ArchiveNavigation } from "../archive/archive-loop";
-import {
-  bangumiMotionDuration,
-  onBangumiMotionSpeedChange,
-} from "../motion/bangumi-motion";
 
 type SelectionText = {
   number: number;
@@ -42,7 +38,7 @@ export function setupBangumiTextMotion(root: HTMLElement) {
     return element;
   };
   const motion = {
-    duration: bangumiMotionDuration(460),
+    duration: 460,
     motionBlur: false,
     animated: false,
     pauseOffscreen: false,
@@ -205,12 +201,6 @@ export function setupBangumiTextMotion(root: HTMLElement) {
     meta: wrappingText("selection-meta"),
   };
   const controllers = [...Object.values(numbers), ...Object.values(texts)];
-  const unsubscribeSpeed = onBangumiMotionSpeedChange(() => {
-    const duration = bangumiMotionDuration(460);
-    controllers.forEach((controller) => {
-      controller.update({ duration });
-    });
-  });
   let enabled = false;
   const setEnabled = (next: boolean) => {
     if (enabled === next) return;
@@ -268,7 +258,6 @@ export function setupBangumiTextMotion(root: HTMLElement) {
       setEnabled(false);
     },
     destroy() {
-      unsubscribeSpeed();
       cancelAnimationFrame(wrappingFrame);
       pendingWraps.clear();
       controllers.forEach((controller) => {

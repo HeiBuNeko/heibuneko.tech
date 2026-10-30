@@ -3,10 +3,6 @@ import {
   nearestOccurrence,
   wrap,
 } from "../archive/archive-loop";
-import {
-  getBangumiMotionSpeed,
-  onBangumiMotionSpeedChange,
-} from "../motion/bangumi-motion";
 
 type BangumiRulerItem = { index: number; title: string; id?: string };
 type Spring = { value: number; velocity: number };
@@ -92,16 +88,11 @@ export function setupBangumiRuler(host: HTMLElement) {
   let lastFrame = 0;
   let motionTime = 0;
   let clockTime = performance.now();
-  let motionSpeed = getBangumiMotionSpeed();
   const motionNow = (now: number) => {
-    motionTime += Math.max(0, now - clockTime) * motionSpeed;
+    motionTime += Math.max(0, now - clockTime);
     clockTime = Math.max(clockTime, now);
     return motionTime;
   };
-  const unsubscribeSpeed = onBangumiMotionSpeedChange((speed) => {
-    motionNow(performance.now());
-    motionSpeed = speed;
-  });
   let tickWidth = 3;
   let gap = 8;
   let restHeight = 10;
@@ -372,10 +363,7 @@ export function setupBangumiRuler(host: HTMLElement) {
     frame = 0;
     if (disposed) return;
     now = motionNow(now);
-    const seconds = Math.min(
-      0.05 * motionSpeed,
-      Math.max(0, (now - lastFrame) / 1000),
-    );
+    const seconds = Math.min(0.05, Math.max(0, (now - lastFrame) / 1000));
     lastFrame = now;
     if (render(now, seconds) && !frame) frame = requestAnimationFrame(animate);
   }
@@ -525,7 +513,6 @@ export function setupBangumiRuler(host: HTMLElement) {
     },
     destroy() {
       disposed = true;
-      unsubscribeSpeed();
       cancelAnimationFrame(frame);
       events.abort();
       reducedQuery.removeEventListener("change", onReduced);

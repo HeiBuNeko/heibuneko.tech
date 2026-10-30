@@ -342,7 +342,7 @@ export const mountBangumi = (
       if (disposed) return;
       scene.enableSelectionLighting();
       scene.setReduced(reduced);
-      await scene.load(undefined, selected);
+      await scene.load(selected);
       if (disposed) return;
       scene.prepareRenderQuality();
       scene.renderer.domElement.setAttribute(

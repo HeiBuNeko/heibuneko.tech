@@ -6,7 +6,6 @@ import {
   createAlbumPrintMaterial,
 } from "../rendering/bangumi-model";
 
-export const COVER_SIZE = BANGUMI_COVER;
 export type CoverImage = {
   source: CanvasImageSource;
   width: number;
@@ -177,9 +176,9 @@ export class CoverAtlas {
     this.selectedTexture.anisotropy = Math.min(8, anisotropy);
     this.selectedTexture.userData.maxAnisotropy = 8;
     const geometry = new THREE.PlaneGeometry(
-      COVER_SIZE.width,
-      COVER_SIZE.height,
-    ).translate(COVER_SIZE.x, COVER_SIZE.y, COVER_SIZE.z);
+      BANGUMI_COVER.width,
+      BANGUMI_COVER.height,
+    ).translate(BANGUMI_COVER.x, BANGUMI_COVER.y, BANGUMI_COVER.z);
     const tileOffsets = new Float32Array(count * 4);
     for (let i = 0; i < count; i++) {
       tileOffsets.set(
@@ -251,11 +250,10 @@ export class CoverAtlas {
     this.array.name = "Album cover atlas";
     this.array.receiveShadow = true;
     this.selected = new THREE.Mesh(
-      new THREE.PlaneGeometry(COVER_SIZE.width, COVER_SIZE.height).translate(
-        COVER_SIZE.x,
-        COVER_SIZE.y,
-        COVER_SIZE.z,
-      ),
+      new THREE.PlaneGeometry(
+        BANGUMI_COVER.width,
+        BANGUMI_COVER.height,
+      ).translate(BANGUMI_COVER.x, BANGUMI_COVER.y, BANGUMI_COVER.z),
       makePrint(this.selectedTexture),
     );
     this.selected.userData.albumCover = true;
@@ -409,7 +407,7 @@ export class CoverAtlas {
       key = JSON.stringify([
         record.id,
         record.coverUrl,
-        record.title,
+        record.bangumi.name,
         record.bangumi.name_cn,
       ]);
       this.recordKeys.set(record, key);

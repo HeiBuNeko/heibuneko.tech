@@ -63,7 +63,10 @@ export class MusicSelectionLighting {
   };
   private readonly edgeFalloff = { value: new THREE.Vector2(1.7, 24) };
 
-  constructor(private readonly scene: THREE.Scene) {
+  constructor(
+    private readonly scene: THREE.Scene,
+    lightRoot: THREE.Object3D = scene,
+  ) {
     this.spot.name = "Selected album soft key";
     // Existing soft contact shadows are sufficient; the local key adds no
     // second shadow-map render across the entire glass array.
@@ -73,7 +76,7 @@ export class MusicSelectionLighting {
     this.area.name = "V0.3.1 horizontal row area light";
     this.area.visible = false;
     this.area.castShadow = false;
-    scene.add(this.spot, this.spot.target, this.area);
+    lightRoot.add(this.spot, this.spot.target, this.area);
   }
 
   setExperiment(settings: Partial<RowLightingSettings>) {

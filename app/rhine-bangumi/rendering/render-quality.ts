@@ -192,6 +192,7 @@ export function resizeQuality(
   composer: EffectComposer,
   host: HTMLElement,
   quality: RenderQuality,
+  setDpr: (ratio: number) => void,
 ) {
   const width = Math.max(1, host.clientWidth),
     height = Math.max(1, host.clientHeight);
@@ -203,8 +204,7 @@ export function resizeQuality(
     devicePixelRatio,
     renderer.capabilities.maxTextureSize,
   );
-  renderer.setPixelRatio(dimensions.ratio);
-  renderer.setSize(width, height);
+  setDpr(dimensions.ratio);
   composer.setPixelRatio(dimensions.ratio);
   composer.setSize(width, height);
   renderer.transmissionResolutionScale = quality.transmission;

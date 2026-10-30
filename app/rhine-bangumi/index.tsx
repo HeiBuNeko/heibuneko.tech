@@ -1,52 +1,37 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import type { BangumiHandle } from "./mount";
+import { useState } from "react";
+import { BangumiCanvas } from "./rendering/scene-runtime";
 import "@kitlangton/rolling-number/styles.css";
 import "./styles/music-navigation-ruler.css";
 import "./styles/stage.css";
 
-type BangumiProps = {
-  active: boolean;
-};
+type BangumiProps = { active: boolean };
 
 export const Bangumi = ({ active }: BangumiProps) => {
-  const rootRef = useRef<HTMLDivElement>(null);
-  const handleRef = useRef<BangumiHandle | null>(null);
-  const activeRef = useRef(active);
-  activeRef.current = active;
-
-  useEffect(() => {
-    const root = rootRef.current;
-    if (!root) return;
-    let handle: BangumiHandle | undefined;
-    let cancelled = false;
-
-    void import("./mount").then(({ mountBangumi }) => {
-      if (cancelled || !rootRef.current) return;
-      handle = mountBangumi(rootRef.current);
-      handleRef.current = handle;
-      handle.setActive(activeRef.current);
-    });
-
-    return () => {
-      cancelled = true;
-      handle?.dispose();
-      handleRef.current = null;
-    };
-  }, []);
-
-  useEffect(() => {
-    handleRef.current?.setActive(active);
-  }, [active]);
+  const [root, setRoot] = useState<HTMLDivElement | null>(null);
+  const [canvasHost, setCanvasHost] = useState<HTMLDivElement | null>(null);
+  const [error, setError] = useState("");
 
   return (
     <div
-      ref={rootRef}
+      ref={setRoot}
       data-theme="night"
       aria-hidden={!active}
       inert={!active}
       className={`bangumi-stage music-app absolute inset-0 z-0${active ? "" : "pointer-events-none invisible"}`}
-    />
+    >
+      <div ref={setCanvasHost} className="three-scene">
+        {root && canvasHost && (
+          <BangumiCanvas
+            root={root}
+            canvasHost={canvasHost}
+            active={active}
+            onError={setError}
+          />
+        )}
+      </div>
+      {error && <p className="bangumi-status">三维资源未能加载。{error}</p>}
+    </div>
   );
 };

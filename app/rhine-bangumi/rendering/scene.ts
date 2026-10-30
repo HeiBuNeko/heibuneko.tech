@@ -1,11 +1,5 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
-import { BokehPass } from "three/addons/postprocessing/BokehPass.js";
-import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
-import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
-import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
-import { SMAAPass } from "three/addons/postprocessing/SMAAPass.js";
-import { SSAOPass } from "three/addons/postprocessing/SSAOPass.js";
 import {
   type ArchiveCell,
   type ArchiveNavigation,
@@ -76,7 +70,10 @@ import {
 import { getMusicMotionSpeed } from "../motion/music-motion";
 import { archiveFraming, swipeDirection } from "../motion/viewport-layout";
 import { CardAppearance } from "./appearance";
-import { createArchiveLighting, type LightingLook } from "./archive-lighting";
+import {
+  createArchiveEnvironment,
+  type LightingLook,
+} from "./archive-lighting";
 import { assetUrl as publicAsset } from "./asset-url";
 import { labelMarkSvg } from "./brand";
 import { configureInternalOptics } from "./internal-optics";
@@ -87,14 +84,13 @@ import {
   configureMusicGlass,
   MUSIC_COLUMN_SPACING,
   MUSIC_MODEL,
-  musicAssemblyPart,
   normalizeMusicGeometry,
 } from "./music-model";
+import { createPostprocessing } from "./postprocessing";
 import {
   applyTextureQuality,
   normalizeQuality,
   type RenderQuality,
-  resizeQuality,
 } from "./render-quality";
 import { ThemeTransition } from "./theme-transition";
 
@@ -113,14 +109,13 @@ export class ArchiveScene {
     ? MUSIC_COLUMN_SPACING
     : COLUMN_SPACING;
   readonly renderer: THREE.WebGLRenderer;
-  readonly scene = new THREE.Scene();
+  readonly scene: THREE.Scene;
+  readonly content: THREE.Group;
   // The reference uses a long lens 72–140 units from the cassette. A 0.1 near
   // plane quantizes adjacent optical layers to the same depth (visible shimmer).
   // All visible foreground geometry is beyond 5; retain the framing and lens.
-  readonly camera = new THREE.PerspectiveCamera(34, 16 / 9, 5, 300);
-  private composer: EffectComposer;
-  private ao: SSAOPass;
-  private bokeh: BokehPass;
+  readonly camera: THREE.PerspectiveCamera;
+  private pipeline: ReturnType<typeof createPostprocessing>;
   private instances: THREE.InstancedMesh[] = [];
   private model = new THREE.Group();
   private appearance = new CardAppearance();
@@ -186,6 +181,7 @@ export class ArchiveScene {
   private rotation = 0;
   private targetRotation = 0;
   private light: THREE.DirectionalLight;
+  private environmentTarget: THREE.WebGLRenderTarget;
   private floor: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshStandardMaterial>;
   private stars?: THREE.Points<THREE.BufferGeometry, THREE.PointsMaterial>;
   private covers?: CoverAtlas;
@@ -202,8 +198,7 @@ export class ArchiveScene {
   private quality = normalizeQuality(undefined);
   private appliedQuality = "";
   private disposed = false;
-  private smaa = new SMAAPass();
-  private aoKernelSize = 32;
+  private readonly pointerEvents = new AbortController();
   private displayHeight = 0;
   private layoutKind = "";
   onSelect?: (index: number, cell?: ArchiveCell) => void;
@@ -211,15 +206,24 @@ export class ArchiveScene {
   onNavigate?: (axis: "row" | "lane", direction: number) => void;
   constructor(
     private container: HTMLElement,
+    runtime: {
+      renderer: THREE.WebGLRenderer;
+      scene: THREE.Scene;
+      camera: THREE.PerspectiveCamera;
+      content: THREE.Group;
+      key: THREE.DirectionalLight;
+      floor: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshStandardMaterial>;
+      stars: THREE.Points<THREE.BufferGeometry, THREE.PointsMaterial>;
+      setDpr: (ratio: number) => void;
+    },
     private readonly selectionPulse = baselineSelectionWave,
     private readonly deferSelectionPulse = false,
     private readonly lightingLook: LightingLook = "baseline",
   ) {
-    this.renderer = new THREE.WebGLRenderer({
-      antialias: true,
-      alpha: false,
-      powerPreference: "high-performance",
-    });
+    this.renderer = runtime.renderer;
+    this.scene = runtime.scene;
+    this.camera = runtime.camera;
+    this.content = runtime.content;
     this.renderer.setPixelRatio(
       Math.min(devicePixelRatio, 1.5) *
         Math.min(innerWidth / 1920, innerHeight / 1080),
@@ -234,10 +238,14 @@ export class ArchiveScene {
       "aria-label",
       "三维研究档案阵列，可点击选择档案",
     );
-    container.appendChild(this.renderer.domElement);
     this.scene.background = new THREE.Color("#eae5e1");
     this.scene.fog = new THREE.Fog("#eae5e1", 22, 47);
-    this.light = createArchiveLighting(this.renderer, this.scene, lightingLook);
+    this.environmentTarget = createArchiveEnvironment(
+      this.renderer,
+      this.scene,
+      lightingLook,
+    );
+    this.light = runtime.key;
     this.light.castShadow = true;
     Object.assign(this.light.shadow.camera, {
       left: -16,
@@ -251,68 +259,21 @@ export class ArchiveScene {
     this.light.shadow.normalBias = lightingLook === "refined" ? 0.018 : 0.035;
     this.light.shadow.bias = lightingLook === "refined" ? -0.00012 : -0.0003;
     this.light.shadow.radius = 4;
-    this.floor = new THREE.Mesh(
-      new THREE.PlaneGeometry(200, 200),
-      new THREE.MeshStandardMaterial({ color: "#d8c9b9", roughness: 0.95 }),
-    );
-    const floor = this.floor;
-    floor.rotation.x = -Math.PI / 2;
-    floor.position.y = -4.63;
-    floor.receiveShadow = true;
-    this.scene.add(floor);
-    const starPositions: number[] = [];
-    let seed = 417;
-    const random = () => {
-      seed = (seed * 1664525 + 1013904223) >>> 0;
-      return seed / 4294967296;
-    };
-    for (let i = 0; i < 140; i++)
-      starPositions.push(random() * 2 - 1, random() * 2 - 1, 0);
-    const starGeometry = new THREE.BufferGeometry();
-    starGeometry.setAttribute(
-      "position",
-      new THREE.Float32BufferAttribute(starPositions, 3),
-    );
-    this.stars = new THREE.Points(
-      starGeometry,
-      new THREE.PointsMaterial({
-        color: "#dbeaff",
-        size: 1.5,
-        sizeAttenuation: false,
-        transparent: true,
-        opacity: 0,
-        depthWrite: false,
-        fog: false,
-      }),
-    );
-    this.stars.visible = false;
-    this.stars.frustumCulled = false;
-    this.scene.add(this.stars);
+    this.floor = runtime.floor;
+    this.stars = runtime.stars;
     this.camera.position.set(-62.26, 35.98, 43.28);
     this.cameraAim.set(-0.5, 1.1, 0.4);
     this.camera.fov = 6.15;
     this.camera.lookAt(this.cameraAim);
-    this.composer = new EffectComposer(this.renderer);
-    this.composer.addPass(new RenderPass(this.scene, this.camera));
-    this.ao = new SSAOPass(
+    this.pipeline = createPostprocessing(
+      this.renderer,
       this.scene,
       this.camera,
       container.clientWidth,
       container.clientHeight,
+      lightingLook === "refined",
+      runtime.setDpr,
     );
-    this.ao.kernelRadius = lightingLook === "refined" ? 0.44 : 0.38;
-    this.ao.minDistance = 0.001;
-    this.ao.maxDistance = 0.09;
-    this.composer.addPass(this.ao);
-    this.bokeh = new BokehPass(this.scene, this.camera, {
-      focus: 25,
-      aperture: 0.0018,
-      maxblur: 0.011,
-    });
-    this.composer.addPass(this.bokeh);
-    this.smaa.enabled = false;
-    this.composer.addPass(this.smaa);
-    this.composer.addPass(new OutputPass());
     this.bindPointer();
   }
   async load(
@@ -476,7 +437,7 @@ export class ArchiveScene {
       inst.receiveShadow = true;
       inst.frustumCulled = false;
       this.instances.push(inst);
-      this.scene.add(inst);
+      this.content.add(inst);
     }
     this.covers = new CoverAtlas(
       count,
@@ -484,7 +445,7 @@ export class ArchiveScene {
       this.renderer.capabilities.getMaxAnisotropy(),
       this.selectionLighting,
     );
-    this.scene.add(this.covers.array);
+    this.content.add(this.covers.array);
     this.model.add(this.covers.selected);
     if (!musicLibrary) {
       this.labelCanvas.width = 1024;
@@ -509,11 +470,12 @@ export class ArchiveScene {
     this.appearance.prepare(this.model);
     this.appearance.apply(this.model, 0);
     if (!musicLibrary) this.drawLabel(0);
-    this.scene.add(this.model);
+    this.content.add(this.model);
     // Logical slots retain their own stride; they are not display-pool indices.
     this.model.position.copy(this.cellPosition(this.selectedCell));
     this.loaded = true;
     if (musicLibrary) await this.refreshLibrary(selectedIndex);
+    if (this.disposed) return;
     this.setTheme(this.theme);
   }
 
@@ -531,7 +493,7 @@ export class ArchiveScene {
     this.musicNavigationLift = false;
     this.targetDetail = this.detail = 0;
     for (const old of this.outgoing) {
-      this.scene.remove(old.group);
+      this.content.remove(old.group);
       this.appearance.dispose(old.group);
     }
     this.outgoing = [];
@@ -569,7 +531,10 @@ export class ArchiveScene {
   }
 
   enableSelectionLighting() {
-    this.selectionLighting ??= new MusicSelectionLighting(this.scene);
+    this.selectionLighting ??= new MusicSelectionLighting(
+      this.scene,
+      this.content,
+    );
     this.appearance.musicLighting = this.selectionLighting;
     this.softenMusicContactShadows();
     this.setTheme(this.theme);
@@ -583,16 +548,7 @@ export class ArchiveScene {
 
   private softenMusicContactShadows() {
     this.light.shadow.intensity = 0.32;
-    this.ao.kernelRadius = 0.18;
-    this.ao.maxDistance = 0.035;
-    // SSAO assumes opaque solids. Thin transmitting cases need only a soft
-    // contact cue: bound the darkest AO multiplier to 0.78, not solid black.
-    this.ao.copyMaterial.fragmentShader =
-      this.ao.copyMaterial.fragmentShader.replace(
-        "gl_FragColor = opacity * texel;",
-        "gl_FragColor = vec4(mix(vec3(1.0), texel.rgb, 0.22), texel.a);",
-      );
-    this.ao.copyMaterial.needsUpdate = true;
+    this.pipeline.softenContactShadows();
   }
 
   setTheme(theme: "day" | "night" | "dusk", animate = false) {
@@ -683,120 +639,6 @@ export class ArchiveScene {
     if (this.stars) this.stars.visible = this.stars.material.opacity > 0;
   }
 
-  private assemblyTemplate?: Promise<THREE.Group>;
-  private musicAssemblyTemplate?: Promise<THREE.Group>;
-  private async createMusicAssemblyModel() {
-    this.musicAssemblyTemplate ??= new GLTFLoader()
-      .loadAsync(publicAsset(MUSIC_CD_ASSET))
-      .then((gltf) => {
-        gltf.scene.updateMatrixWorld(true);
-        return gltf.scene;
-      })
-      .catch((error) => {
-        this.musicAssemblyTemplate = undefined;
-        throw error;
-      });
-    const template = await this.musicAssemblyTemplate;
-    const model = new THREE.Group();
-    const meshes: THREE.Mesh[] = [];
-    template.traverse((object) => {
-      if (!(object instanceof THREE.Mesh)) return;
-      const surface = (object.material as THREE.Material).name.replace(
-        /\.\d+$/,
-        "",
-      );
-      const geometry = normalizeMusicGeometry(
-        object.geometry.clone().applyMatrix4(object.matrixWorld),
-      );
-      const mesh = new THREE.Mesh(geometry, object.material);
-      mesh.userData.surface = surface;
-      mesh.userData.musicShell = true;
-      mesh.userData.assemblyPart = musicAssemblyPart(surface);
-      model.add(mesh);
-      meshes.push(mesh);
-    });
-    this.appearance.prepare(model);
-    this.appearance.apply(model, 1);
-    this.appearance.setClarity(model, 1);
-    model.userData.musicShell = true;
-    return {
-      model,
-      setClarity: (value: number) => this.appearance.setClarity(model, value),
-      dispose: () => {
-        for (const mesh of meshes) {
-          mesh.geometry.dispose();
-          (mesh.material as THREE.Material).dispose();
-        }
-      },
-    };
-  }
-
-  async createAssemblyModel() {
-    if (musicLibrary) return this.createMusicAssemblyModel();
-    this.assemblyTemplate ??= new GLTFLoader()
-      .loadAsync(publicAsset("assets/archive-assembly.glb"))
-      .then((gltf) => {
-        gltf.scene.updateMatrixWorld(true);
-        return gltf.scene;
-      })
-      .catch((error) => {
-        this.assemblyTemplate = undefined;
-        throw error;
-      });
-    const template = await this.assemblyTemplate;
-    const model = new THREE.Group();
-    const meshes: THREE.Mesh[] = [];
-    template.traverse((object) => {
-      if (!(object instanceof THREE.Mesh)) return;
-      const name = (object.material as THREE.Material).name.replace(
-        /\.\d+$/,
-        "",
-      );
-      const mesh = new THREE.Mesh(
-        object.geometry.clone().applyMatrix4(object.matrixWorld),
-        object.material,
-      );
-      mesh.userData.surface = name;
-      mesh.userData.assemblyPart = object.userData.assemblyPart;
-      model.add(mesh);
-      meshes.push(mesh);
-    });
-    this.appearance.prepare(model);
-    this.appearance.apply(model, 1);
-    this.appearance.setClarity(model, this.decryption.clarity);
-    const canvas = document.createElement("canvas");
-    canvas.width = this.labelCanvas.width;
-    canvas.height = this.labelCanvas.height;
-    canvas.getContext("2d")?.drawImage(this.labelCanvas, 0, 0);
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.colorSpace = THREE.SRGBColorSpace;
-    texture.anisotropy = this.renderer.capabilities.getMaxAnisotropy();
-    const label = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.99, 0.46),
-      new THREE.MeshBasicMaterial({
-        map: texture,
-        toneMapped: false,
-        transparent: true,
-        depthWrite: false,
-      }),
-    );
-    label.position.set(-1.36, 3.04, 0.255);
-    label.userData.assemblyPart = "cover";
-    label.userData.printedLabel = true;
-    model.add(label);
-    meshes.push(label);
-    return {
-      model,
-      setClarity: (value: number) => this.appearance.setClarity(model, value),
-      dispose: () => {
-        for (const mesh of meshes) {
-          mesh.geometry.dispose();
-          (mesh.material as THREE.Material).dispose();
-        }
-        texture.dispose();
-      },
-    };
-  }
   setMode(mode: "hidden" | "archive" | "detail") {
     if (mode !== "archive") this.musicOverview.active = false;
     if (mode === "hidden") this.musicOverview.reset();
@@ -821,7 +663,7 @@ export class ArchiveScene {
       this.musicRealColumns.reset(this.musicColumnCounts, this.selectedCell);
       this.coordinateOrigin = { lane: 0, row: 0 };
       for (const old of this.outgoing) {
-        this.scene.remove(old.group);
+        this.content.remove(old.group);
         this.appearance.dispose(old.group);
       }
       this.outgoing = [];
@@ -877,7 +719,7 @@ export class ArchiveScene {
     });
     this.coordinateOrigin = { lane: 0, row: 0 };
     for (const old of this.outgoing) {
-      this.scene.remove(old.group);
+      this.content.remove(old.group);
       this.appearance.dispose(old.group);
     }
     this.outgoing = [];
@@ -1148,7 +990,7 @@ export class ArchiveScene {
     this.pulses = [];
     this.pendingPulse = null;
     for (const old of this.outgoing) {
-      this.scene.remove(old.group);
+      this.content.remove(old.group);
       this.appearance.dispose(old.group);
     }
     this.outgoing = [];
@@ -1173,22 +1015,7 @@ export class ArchiveScene {
     if (this.appliedQuality === key) return;
     this.appliedQuality = key;
     this.quality = quality;
-    if (quality.aoSamples && quality.aoSamples !== this.aoKernelSize) {
-      const old = this.ao;
-      this.ao = new SSAOPass(this.scene, this.camera, 1, 1, quality.aoSamples);
-      this.ao.kernelRadius = old.kernelRadius;
-      this.ao.minDistance = old.minDistance;
-      this.ao.maxDistance = old.maxDistance;
-      const index = this.composer.passes.indexOf(old);
-      this.composer.removePass(old);
-      this.composer.insertPass(this.ao, index);
-      old.dispose();
-      this.aoKernelSize = quality.aoSamples;
-      if (this.selectionLighting) this.softenMusicContactShadows();
-    }
-    this.ao.enabled = quality.aoSamples > 0;
-    this.bokeh.enabled = quality.depthOfField > 0;
-    this.smaa.enabled = quality.antialias === "smaa";
+    this.pipeline.setQuality(quality, Boolean(this.selectionLighting));
     this.renderer.shadowMap.enabled = quality.shadows > 0;
     const size = Math.min(
       quality.shadows || 1024,
@@ -1324,7 +1151,7 @@ export class ArchiveScene {
       }
       this.appearance.apply(group, smooth(this.lift.value / 0.4));
       this.appearance.setClarity(group, this.decryption.clarity);
-      this.scene.add(group);
+      this.content.add(group);
       this.outgoing.push({
         group,
         slot: this.selectedSlot,
@@ -1385,7 +1212,7 @@ export class ArchiveScene {
       this.rotation = o.group.rotation.y;
       this.returnY = o.returnY;
       this.decryption.select(o.clarity);
-      this.scene.remove(o.group);
+      this.content.remove(o.group);
       this.appearance.dispose(o.group);
       this.outgoing.splice(returning, 1);
     }
@@ -1465,16 +1292,7 @@ export class ArchiveScene {
     }
     this.displayHeight = displayHeight;
     this.layoutKind = kind;
-    const dimensions = resizeQuality(
-      this.renderer,
-      this.composer,
-      this.container,
-      this.quality,
-    );
-    this.ao.setSize(
-      Math.max(1, Math.floor(dimensions.width * this.quality.aoResolution)),
-      Math.max(1, Math.floor(dimensions.height * this.quality.aoResolution)),
-    );
+    this.pipeline.resize(this.container, this.quality);
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
   }
@@ -1487,153 +1305,176 @@ export class ArchiveScene {
       started = 0,
       cancelled = false;
     const pointers = new Set<number>();
-    canvas.addEventListener("pointerdown", (e) => {
-      if (e.pointerType === "mouse" && e.button !== 0) return;
-      pointers.add(e.pointerId);
-      if (pointers.size > 1) {
-        cancelled = true;
-        this.dragging = false;
-        return;
-      }
-      activePointer = e.pointerId;
-      cancelled = false;
-      previousX = e.clientX;
-      started = performance.now();
-      startX = e.clientX;
-      startY = e.clientY;
-      canvas.setPointerCapture(e.pointerId);
-      if (this.canInspect) {
-        this.dragging = true;
-        canvas.setPointerCapture(e.pointerId);
-      }
-    });
-    canvas.addEventListener("pointermove", (e) => {
-      if (activePointer !== null && e.pointerId !== activePointer) return;
-      if (cancelled) return;
-      const r = canvas.getBoundingClientRect();
-      if (e.pointerType === "mouse")
-        this.pointer.set(
-          (e.clientX - r.left) / r.width - 0.5,
-          (e.clientY - r.top) / r.height - 0.5,
-        );
-      if (this.dragging) {
-        if (!this.canInspect) {
+    canvas.addEventListener(
+      "pointerdown",
+      (e) => {
+        if (e.pointerType === "mouse" && e.button !== 0) return;
+        pointers.add(e.pointerId);
+        if (pointers.size > 1) {
+          cancelled = true;
           this.dragging = false;
           return;
         }
-        this.targetRotation = THREE.MathUtils.clamp(
-          this.targetRotation + (e.clientX - previousX) * 0.004,
-          -0.8,
-          0.8,
-        );
+        activePointer = e.pointerId;
+        cancelled = false;
         previousX = e.clientX;
-        return;
-      }
-      if (e.pointerType !== "mouse") return;
-      if (
-        this.reveal < 0.8 ||
-        this.detail > 0.2 ||
-        !this.loaded ||
-        !records.length
-      )
-        return;
-      this.cursor.set(
-        ((e.clientX - r.left) / r.width) * 2 - 1,
-        (-(e.clientY - r.top) / r.height) * 2 + 1,
-      );
-      this.raycaster.setFromCamera(this.cursor, this.camera);
-      const hit = this.raycaster
-        .intersectObjects([this.instances[0], this.model], true)
-        .find((hit) =>
-          this.pickableCell(
-            hit.instanceId === undefined
-              ? this.selectedCell
-              : this.cells[hit.instanceId],
-          ),
-        );
-      canvas.style.cursor = hit ? "pointer" : "default";
-      this.onHover?.(
-        hit
-          ? hit.instanceId !== undefined
-            ? fileAtCell(this.cells[hit.instanceId])
-            : fileAtSlot(this.selectedSlot)
-          : null,
-      );
-    });
-    canvas.addEventListener("pointerup", (e) => {
-      pointers.delete(e.pointerId);
-      if (e.pointerId !== activePointer) return;
-      activePointer = null;
-      this.dragging = false;
-      if (cancelled) return;
-      if (
-        e.pointerType !== "mouse" &&
-        this.detail < 0.2 &&
-        this.reveal >= 0.8 &&
-        this.loaded
-      ) {
-        const swipe = swipeDirection(
-          e.clientX - startX,
-          e.clientY - startY,
-          performance.now() - started,
-        );
-        if (swipe) {
-          this.onNavigate?.(swipe.axis, swipe.direction);
+        started = performance.now();
+        startX = e.clientX;
+        startY = e.clientY;
+        canvas.setPointerCapture(e.pointerId);
+        if (this.canInspect) {
+          this.dragging = true;
+        }
+      },
+      { signal: this.pointerEvents.signal },
+    );
+    canvas.addEventListener(
+      "pointermove",
+      (e) => {
+        if (activePointer !== null && e.pointerId !== activePointer) return;
+        if (cancelled) return;
+        const r = canvas.getBoundingClientRect();
+        if (e.pointerType === "mouse")
+          this.pointer.set(
+            (e.clientX - r.left) / r.width - 0.5,
+            (e.clientY - r.top) / r.height - 0.5,
+          );
+        if (this.dragging) {
+          if (!this.canInspect) {
+            this.dragging = false;
+            return;
+          }
+          this.targetRotation = THREE.MathUtils.clamp(
+            this.targetRotation + (e.clientX - previousX) * 0.004,
+            -0.8,
+            0.8,
+          );
+          previousX = e.clientX;
           return;
         }
-      }
-      if (
-        Math.hypot(e.clientX - startX, e.clientY - startY) > 6 ||
-        this.detail > 0.2 ||
-        this.reveal < 0.8 ||
-        !this.loaded ||
-        !records.length
-      )
-        return;
-      const r = canvas.getBoundingClientRect();
-      this.cursor.set(
-        ((e.clientX - r.left) / r.width) * 2 - 1,
-        (-(e.clientY - r.top) / r.height) * 2 + 1,
-      );
-      this.raycaster.setFromCamera(this.cursor, this.camera);
-      const hit = this.raycaster
-        .intersectObjects([this.instances[0], this.model], true)
-        .find((hit) =>
-          this.pickableCell(
-            hit.instanceId === undefined
-              ? this.selectedCell
-              : this.cells[hit.instanceId],
-          ),
+        if (e.pointerType !== "mouse") return;
+        if (
+          this.reveal < 0.8 ||
+          this.detail > 0.2 ||
+          !this.loaded ||
+          !records.length
+        )
+          return;
+        this.cursor.set(
+          ((e.clientX - r.left) / r.width) * 2 - 1,
+          (-(e.clientY - r.top) / r.height) * 2 + 1,
         );
-      if (hit)
-        this.onSelect?.(
-          hit.instanceId !== undefined
-            ? fileAtCell(this.cells[hit.instanceId])
-            : fileAtSlot(this.selectedSlot),
-          hit.instanceId !== undefined
-            ? { ...this.cells[hit.instanceId] }
-            : { ...this.selectedCell },
+        this.raycaster.setFromCamera(this.cursor, this.camera);
+        const hit = this.raycaster
+          .intersectObjects([this.instances[0], this.model], true)
+          .find((hit) =>
+            this.pickableCell(
+              hit.instanceId === undefined
+                ? this.selectedCell
+                : this.cells[hit.instanceId],
+            ),
+          );
+        canvas.style.cursor = hit ? "pointer" : "default";
+        this.onHover?.(
+          hit
+            ? hit.instanceId !== undefined
+              ? fileAtCell(this.cells[hit.instanceId])
+              : fileAtSlot(this.selectedSlot)
+            : null,
         );
-    });
-    canvas.addEventListener("pointercancel", (e) => {
-      pointers.delete(e.pointerId);
-      if (e.pointerId === activePointer) {
-        activePointer = null;
-        cancelled = true;
-        this.dragging = false;
-      }
-    });
-    canvas.addEventListener("lostpointercapture", (e) => {
-      pointers.delete(e.pointerId);
-      if (e.pointerId === activePointer) {
+      },
+      { signal: this.pointerEvents.signal },
+    );
+    canvas.addEventListener(
+      "pointerup",
+      (e) => {
+        pointers.delete(e.pointerId);
+        if (e.pointerId !== activePointer) return;
         activePointer = null;
         this.dragging = false;
-      }
-    });
-    canvas.addEventListener("pointerleave", () => {
-      this.pointer.set(0, 0);
-      this.onHover?.(null);
-    });
+        if (cancelled) return;
+        if (
+          e.pointerType !== "mouse" &&
+          this.detail < 0.2 &&
+          this.reveal >= 0.8 &&
+          this.loaded
+        ) {
+          const swipe = swipeDirection(
+            e.clientX - startX,
+            e.clientY - startY,
+            performance.now() - started,
+          );
+          if (swipe) {
+            this.onNavigate?.(swipe.axis, swipe.direction);
+            return;
+          }
+        }
+        if (
+          Math.hypot(e.clientX - startX, e.clientY - startY) > 6 ||
+          this.detail > 0.2 ||
+          this.reveal < 0.8 ||
+          !this.loaded ||
+          !records.length
+        )
+          return;
+        const r = canvas.getBoundingClientRect();
+        this.cursor.set(
+          ((e.clientX - r.left) / r.width) * 2 - 1,
+          (-(e.clientY - r.top) / r.height) * 2 + 1,
+        );
+        this.raycaster.setFromCamera(this.cursor, this.camera);
+        const hit = this.raycaster
+          .intersectObjects([this.instances[0], this.model], true)
+          .find((hit) =>
+            this.pickableCell(
+              hit.instanceId === undefined
+                ? this.selectedCell
+                : this.cells[hit.instanceId],
+            ),
+          );
+        if (hit)
+          this.onSelect?.(
+            hit.instanceId !== undefined
+              ? fileAtCell(this.cells[hit.instanceId])
+              : fileAtSlot(this.selectedSlot),
+            hit.instanceId !== undefined
+              ? { ...this.cells[hit.instanceId] }
+              : { ...this.selectedCell },
+          );
+      },
+      { signal: this.pointerEvents.signal },
+    );
+    canvas.addEventListener(
+      "pointercancel",
+      (e) => {
+        pointers.delete(e.pointerId);
+        if (e.pointerId === activePointer) {
+          activePointer = null;
+          cancelled = true;
+          this.dragging = false;
+        }
+      },
+      { signal: this.pointerEvents.signal },
+    );
+    canvas.addEventListener(
+      "lostpointercapture",
+      (e) => {
+        pointers.delete(e.pointerId);
+        if (e.pointerId === activePointer) {
+          activePointer = null;
+          this.dragging = false;
+        }
+      },
+      { signal: this.pointerEvents.signal },
+    );
+    canvas.addEventListener(
+      "pointerleave",
+      () => {
+        this.pointer.set(0, 0);
+        this.onHover?.(null);
+      },
+      { signal: this.pointerEvents.signal },
+    );
   }
   update(
     time: number,
@@ -2080,7 +1921,7 @@ export class ArchiveScene {
         cinematic ? 1 : this.musicColumnExtent(o.cell.lane),
       );
       if (o.lift.value < 0.0001 && Math.abs(o.group.rotation.y) < 0.0001) {
-        this.scene.remove(o.group);
+        this.content.remove(o.group);
         this.appearance.dispose(o.group);
         this.outgoing.splice(i, 1);
       }
@@ -2587,15 +2428,7 @@ export class ArchiveScene {
       .clone()
       .add(new THREE.Vector3(0, 2, 0))
       .applyMatrix4(this.camera.matrixWorldInverse);
-    const bokehUniforms = this.bokeh.uniforms as Record<
-      string,
-      { value: number }
-    >;
-    bokehUniforms.focus.value = -focalPoint.z;
-    bokehUniforms.aperture.value =
-      (THREE.MathUtils.lerp(0.0003, 0.0008, detail) *
-        this.quality.depthOfField) /
-      100;
+    this.pipeline.setFocus(-focalPoint.z, detail, this.quality.depthOfField);
     this.renderer.info.reset();
     this.selectionLighting?.update(
       this.model,
@@ -2620,7 +2453,7 @@ export class ArchiveScene {
       this.renderer.shadowMap.needsUpdate = true;
     if (render) {
       this.covers?.flushUploads(this.renderer);
-      this.composer.render();
+      this.pipeline.render();
     }
   }
   /** Compile and populate the real pipeline while the loading surface is up.
@@ -2641,8 +2474,11 @@ export class ArchiveScene {
     this.update(started / 1000, settled, false);
     const visible = this.model.visible;
     this.model.visible = true;
-    await this.renderer.compileAsync(this.scene, this.camera);
-    this.model.visible = visible;
+    try {
+      await this.renderer.compileAsync(this.scene, this.camera);
+    } finally {
+      this.model.visible = visible;
+    }
     if (this.disposed) return;
     await this.covers?.prepareVisible(1200);
     // Bound initialization work as well: at most 16 MiB of tiles per turn.
@@ -2670,13 +2506,16 @@ export class ArchiveScene {
   dispose() {
     if (this.disposed) return;
     this.disposed = true;
+    this.pointerEvents.abort();
     this.loaded = false;
-    this.covers?.dispose();
+    const covers = this.covers;
+    covers?.dispose();
     this.covers = undefined;
     const geometries = new Set<THREE.BufferGeometry>();
     const materials = new Set<THREE.Material>();
     const textures = new Set<THREE.Texture>();
-    this.scene.traverse((object) => {
+    this.content.traverse((object) => {
+      if (object === covers?.array || object === covers?.selected) return;
       if (object instanceof THREE.Mesh || object instanceof THREE.Points) {
         geometries.add(object.geometry);
         for (const material of Array.isArray(object.material)
@@ -2693,15 +2532,12 @@ export class ArchiveScene {
     for (const material of materials) material.dispose();
     for (const texture of textures) texture.dispose();
     this.labelTexture?.dispose();
-    this.scene.environment?.dispose();
-    this.light.shadow.dispose();
-    for (const pass of this.composer.passes) pass.dispose();
-    this.composer.dispose();
-    this.scene.clear();
+    this.scene.environment = null;
+    this.environmentTarget.dispose();
+    this.pipeline.dispose();
+    this.content.clear();
     this.outgoing = [];
-    this.renderer.dispose();
-    this.renderer.forceContextLoss();
-    this.renderer.domElement.remove();
+    this.renderer.info.autoReset = true;
   }
   projectCard(x: number, y: number) {
     this.model.updateMatrixWorld(true);

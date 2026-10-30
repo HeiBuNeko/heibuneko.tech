@@ -1,12 +1,17 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useState } from "react";
 import { Cursor } from "./components/cursor";
 import { Loading } from "./components/loading";
 import { NavTabs, type Tab } from "./components/nav-tabs";
 import { Splash } from "./components/splash";
 import { Hero } from "./hero";
-import { Bangumi } from "./rhine-bangumi";
+
+const Bangumi = dynamic(
+  () => import("./rhine-bangumi").then((module) => module.Bangumi),
+  { ssr: false },
+);
 
 const HomePage = () => {
   const [tab, setTab] = useState<Tab>("hero");

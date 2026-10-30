@@ -1,4 +1,4 @@
-import type { Bangumi } from "./demo-library";
+import { type Bangumi, demoBangumi } from "./demo-library";
 
 export interface ArchiveRecord {
   id: string;
@@ -16,12 +16,8 @@ export interface ArchiveRecord {
   bangumi: Bangumi;
 }
 
-export let records: ArchiveRecord[] = [];
-export let archiveColumns: string[] = [];
 // The existing scene uses this flag to select its glass case and cover mode.
 export const musicLibrary = true;
-export let slotStride = 32;
-let filesByColumn: number[][] = [];
 
 export function bangumiCoverUrl(image: string) {
   const url = new URL(image);
@@ -29,7 +25,7 @@ export function bangumiCoverUrl(image: string) {
   return url.toString();
 }
 
-export function setBangumi(items: readonly Bangumi[]) {
+function createLibrary(items: readonly Bangumi[]) {
   const ordered = items
     .map((item, position) => ({ item, position }))
     .sort(
@@ -38,11 +34,11 @@ export function setBangumi(items: readonly Bangumi[]) {
     )
     .map(({ item }) => item);
   const months = [...new Set(ordered.map((item) => item.date.slice(0, 7)))];
-  archiveColumns = months.map((month) => {
+  const archiveColumns = months.map((month) => {
     const [year, number] = month.split("-");
     return `${year}年${Number(number)}月`;
   });
-  records = ordered.map((item) => ({
+  const records: ArchiveRecord[] = ordered.map((item) => ({
     id: `${item.date}:${item.name}:${item.image}`,
     title: item.name,
     en: item.name_cn,
@@ -57,13 +53,21 @@ export function setBangumi(items: readonly Bangumi[]) {
     coverUrl: bangumiCoverUrl(item.image),
     bangumi: item,
   }));
-  filesByColumn = months.map((month) =>
+  const filesByColumn = months.map((month) =>
     records.flatMap((record, index) =>
       record.date.slice(0, 7) === month ? [index] : [],
     ),
   );
-  slotStride = Math.max(32, ...filesByColumn.map((files) => files.length + 12));
+  const slotStride = Math.max(
+    32,
+    ...filesByColumn.map((files) => files.length + 12),
+  );
+  return { records, archiveColumns, filesByColumn, slotStride };
 }
+
+const library = createLibrary(demoBangumi);
+export const { records, archiveColumns, slotStride } = library;
+const { filesByColumn } = library;
 
 export function columnFiles(lane: number) {
   return filesByColumn[lane] ?? [];

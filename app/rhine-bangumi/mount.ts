@@ -4,29 +4,29 @@ import {
   columnFiles,
   fileLocation,
   records,
-  setBangumi,
 } from "./data/data";
-import { demoBangumi } from "./data/demo-library";
 import { viewportLayout } from "./motion/viewport-layout";
 import { DEFAULT_LIGHTING_PRESET } from "./rendering/music-row-lighting";
 import { qualityPresets } from "./rendering/render-quality";
-import { ArchiveScene } from "./rendering/scene";
+import type { ArchiveScene } from "./rendering/scene";
 import { setupBangumiUI } from "./ui/bangumi-ui";
 import { MusicBoot } from "./ui/music-boot";
 import { mountMusicWheelNavigation } from "./ui/music-wheel-navigation";
 
 export type BangumiHandle = {
   setActive: (active: boolean) => void;
+  tick: (now: number) => void;
   dispose: () => void;
 };
 
-export const mountBangumi = (root: HTMLElement): BangumiHandle => {
-  setBangumi(demoBangumi);
-
+export const mountBangumi = (
+  root: HTMLElement,
+  canvasHost: HTMLElement,
+  scene: ArchiveScene,
+  onFailure: () => void,
+): BangumiHandle => {
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const coarse = window.matchMedia("(pointer: coarse)").matches;
-  const canvasHost = document.createElement("div");
-  canvasHost.className = "three-scene";
   canvasHost.style.opacity = "0";
   const status = document.createElement("p");
   status.className = "bangumi-status";
@@ -48,13 +48,11 @@ export const mountBangumi = (root: HTMLElement): BangumiHandle => {
     credit("RonaldDeng", "https://github.com/RonaldDeng/Rhine-Music-Demo"),
     " (music adaptation and subsequent modifications)",
   );
-  root.append(canvasHost, status, copyright);
+  root.append(status, copyright);
 
-  let scene: ArchiveScene | undefined;
   let interfaceUI: ReturnType<typeof setupBangumiUI> | undefined;
   let boot: MusicBoot | undefined;
   let wheel: { dispose: () => void } | undefined;
-  let frame = 0;
   let disposed = false;
   let ready = false;
   let active = false;
@@ -144,19 +142,11 @@ export const mountBangumi = (root: HTMLElement): BangumiHandle => {
     scene?.resize();
   };
 
-  const suspend = () => {
-    cancelAnimationFrame(frame);
-    frame = 0;
-  };
-
-  const loop = (now: number) => {
-    frame = 0;
-    if (disposed || !active || document.hidden || !scene) return;
-    const opening = boot?.update(now / 1000);
-    if (opening?.renderScene !== false)
-      scene.update(now / 1000, opening?.cinema);
+  const tick = (now: number) => {
+    if (disposed || !ready || !active || document.hidden) return;
+    const opening = boot?.update(now);
+    if (opening?.renderScene !== false) scene.update(now, opening?.cinema);
     if (mode === "detail" && placed()) interfaceUI?.showDetail();
-    frame = requestAnimationFrame(loop);
   };
 
   const resume = () => {
@@ -169,7 +159,6 @@ export const mountBangumi = (root: HTMLElement): BangumiHandle => {
       canvasHost.style.opacity = "1";
       boot.start(performance.now() / 1000);
     }
-    if (!frame) frame = requestAnimationFrame(loop);
   };
 
   const onKey = (event: KeyboardEvent) => {
@@ -210,8 +199,7 @@ export const mountBangumi = (root: HTMLElement): BangumiHandle => {
   };
 
   const onVisibility = () => {
-    if (document.hidden) suspend();
-    else resume();
+    if (!document.hidden) resume();
   };
 
   interfaceUI = setupBangumiUI(root, reduced, {
@@ -232,12 +220,12 @@ export const mountBangumi = (root: HTMLElement): BangumiHandle => {
     if (disposed) return;
     canvasHost.style.opacity = "0";
     status.textContent = `三维资源未能加载。${error instanceof Error ? error.message : ""}`;
+    onFailure();
   };
 
   void (async () => {
     try {
       if (disposed) return;
-      scene = new ArchiveScene(canvasHost);
       scene.setMusicArrayMode("filled");
       scene.enableSelectionLighting();
       scene.setLightingExperiment(DEFAULT_LIGHTING_PRESET);
@@ -293,29 +281,31 @@ export const mountBangumi = (root: HTMLElement): BangumiHandle => {
       resume();
     } catch (error) {
       console.error(error);
+      scene.dispose();
       fail(error);
     }
   })();
 
   return {
+    tick,
     setActive(next) {
       active = next;
       if (!ready) return;
       if (next) resume();
-      else suspend();
     },
     dispose() {
       if (disposed) return;
       disposed = true;
-      suspend();
       observer.disconnect();
       window.removeEventListener("keydown", onKey);
       document.removeEventListener("visibilitychange", onVisibility);
       wheel?.dispose();
       boot?.dispose();
       interfaceUI?.dispose();
-      scene?.dispose();
-      root.replaceChildren();
+      scene.dispose();
+      status.remove();
+      copyright.remove();
+      canvasHost.style.opacity = "0";
     },
   };
 };

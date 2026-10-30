@@ -204,12 +204,6 @@ export function setMusicGlassTheme(
   if (day) transition.color(material.color, finish.dayColor);
 }
 
-export function musicAssemblyPart(surface: string) {
-  if (surface === "Frosted_Polymer") return "cover";
-  if (surface === "Optical_Diffuser") return "substrate";
-  return "carrier";
-}
-
 /** Clarity softens the lid while the separate translucent spine keeps its finish. */
 export function setMusicGlassClarity(
   material: THREE.MeshPhysicalMaterial,

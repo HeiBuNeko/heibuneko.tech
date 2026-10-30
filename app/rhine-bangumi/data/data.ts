@@ -16,15 +16,20 @@ export interface ArchiveRecord {
   bangumi: Bangumi;
 }
 
-// The existing scene uses this flag to select its glass case and cover mode.
-export const musicLibrary = true;
-
 export function bangumiCoverUrl(image: string) {
   const url = new URL(image);
   if (url.hostname === "lain.bgm.tv") url.hostname = "api.bgm.tv";
   return url.toString();
 }
 
+/**
+ * 从本地番剧列表建立按月份排列的档案数据。
+ *
+ * 稳定排序后生成记录、月份列、列索引和槽位步长。
+ *
+ * @param items 用来建立档案索引的原始番剧列表。
+ * @returns 供场景和界面共同使用的档案索引。
+ */
 function createLibrary(items: readonly Bangumi[]) {
   const ordered = items
     .map((item, position) => ({ item, position }))

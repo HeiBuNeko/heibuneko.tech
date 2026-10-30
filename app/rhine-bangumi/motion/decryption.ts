@@ -1,14 +1,19 @@
 import { smooth } from "./motion";
 
-// Measured against the local reference at 25 fps. Times here are ORIGINAL video
-// seconds, unlike the camera's historical (original minus five) time convention.
 export const DECRYPTION_START = 34.12;
 export const DECRYPTION_END = 39.56;
 const INTERACTIVE_RATE = 1.5;
 
 type Knot = readonly [number, number];
-// Monotone cubic Hermite interpolation preserves the measured easing without
-// overshoot or velocity jumps at a frame sample. End velocities are zero.
+/**
+ * 按关键点采样连续的解密曲线。
+ *
+ * 使用相邻斜率维持关键点之间的平滑过渡。
+ *
+ * @param knots 定义插值曲线的关键点。
+ * @param time 当前动画时间，单位为秒。
+ * @returns 指定时刻的曲线采样值。
+ */
 export function sampleCurve(knots: readonly Knot[], time: number) {
   if (time <= knots[0][0]) return knots[0][1];
   if (time >= knots[knots.length - 1][0]) return knots[knots.length - 1][1];
@@ -48,8 +53,6 @@ const GROW: readonly Knot[] = [
   [35.6, 0.973],
   [36.04, 1],
 ];
-// The clearing front starts when the line finishes retracting. At 39.0 s
-// the upper half is already readable; height-dependent roughness moves with it.
 const REVEAL: readonly Knot[] = [
   [38.84, 0],
   [38.92, 0.28],
@@ -69,8 +72,6 @@ const RETRACT: readonly Knot[] = [
   [38.84, 0],
 ];
 
-// Endpoints measured on the face at 37 seconds. Every moving endpoint is on
-// this ONE diagonal in model space; projection carries it with the camera.
 export const SCAN_FROM = [-1.6, 0.5] as const;
 export const SCAN_TO = [1.98, 3.24] as const;
 export const SCAN_CORNERS = [
@@ -80,6 +81,14 @@ export const SCAN_CORNERS = [
   [2.17, 0.65],
 ] as const;
 
+/**
+ * 计算封面解密动画在指定时刻的状态。
+ *
+ * 组合多个曲线阶段得到当前的清晰度与显示参数。
+ *
+ * @param time 当前动画时间，单位为秒。
+ * @returns 当前动画帧的状态值。
+ */
 export function decryptionFrame(time: number) {
   const grow = sampleCurve(GROW, time);
   const remaining = sampleCurve(RETRACT, time);
@@ -114,6 +123,11 @@ export function decryptionFrame(time: number) {
 }
 export type DecryptionFrame = ReturnType<typeof decryptionFrame>;
 
+/**
+ * 管理封面解密状态及详情切换。
+ *
+ * 同步入场、离场、选片和减少动态效果时的清晰度。
+ */
 export class DecryptionController {
   clarity = 0;
   private active = false;
@@ -142,6 +156,16 @@ export class DecryptionController {
     this.clarity = 1;
     this.frame = decryptionFrame(DECRYPTION_END);
   }
+  /**
+   * 推进解密动画并同步当前状态。
+   *
+   * 根据就绪状态和参考时间决定动画目标，减少动态效果时立即完成。
+   *
+   * @param dt 本次更新的时间步长，单位为秒。
+   * @param ready 场景资源是否已经可用于当前动画。
+   * @param reduced 是否启用减少动态效果。
+   * @param referenceTime 可选的参考时间，用于与开场时间轴同步。
+   */
   update(dt: number, ready: boolean, reduced: boolean, referenceTime?: number) {
     if (referenceTime !== undefined) {
       this.frame = decryptionFrame(referenceTime);
@@ -170,7 +194,6 @@ export class DecryptionController {
       this.frame = decryptionFrame(
         DECRYPTION_START + this.elapsed * INTERACTIVE_RATE,
       );
-      // Re-entry during refrosting starts from the displayed material state.
       this.clarity =
         this.frame.clarity > this.clarity
           ? this.frame.clarity

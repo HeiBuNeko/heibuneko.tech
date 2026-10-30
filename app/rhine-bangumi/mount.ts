@@ -6,8 +6,6 @@ import {
   records,
 } from "./data/data";
 import { viewportLayout } from "./motion/viewport-layout";
-import { DEFAULT_LIGHTING_PRESET } from "./rendering/music-row-lighting";
-import { qualityPresets } from "./rendering/render-quality";
 import type { ArchiveScene } from "./rendering/scene";
 import { setupBangumiUI } from "./ui/bangumi-ui";
 import { MusicBoot } from "./ui/music-boot";
@@ -19,6 +17,17 @@ export type BangumiHandle = {
   dispose: () => void;
 };
 
+/**
+ * 挂载番剧场景与界面交互。
+ *
+ * 创建加载状态、键盘与尺寸监听、开场控制和总览状态，并在卸载时释放对应资源。
+ *
+ * @param root 当前场景或界面的根 DOM 元素。
+ * @param canvasHost 三维画布的 DOM 容器。
+ * @param scene 需要绘制或配置的 Three.js 场景。
+ * @param onFailure 资源加载失败时的回调。
+ * @returns 用于激活、逐帧更新和卸载的场景句柄。
+ */
 export const mountBangumi = (
   root: HTMLElement,
   canvasHost: HTMLElement,
@@ -58,6 +67,8 @@ export const mountBangumi = (
   let active = false;
   let bootStarted = false;
   let mode: "archive" | "detail" = "archive";
+  let overview = false;
+  let overviewRevealPending = false;
   let selected = 0;
   const columnMemory = new Map<string, string>();
 
@@ -95,6 +106,13 @@ export const mountBangumi = (
     go(files[target] ?? selected, { axis: "row", direction });
   };
 
+  /**
+   * 按方向切换月份列。
+   *
+   * 恢复目标列上次浏览的番剧，再把方向交给场景导航。
+   *
+   * @param direction 导航方向或过渡方向。
+   */
   const stepGenre = (direction: number) => {
     if (!records.length || archiveColumns.length < 2 || !direction) return;
     const lane = wrap(
@@ -108,6 +126,51 @@ export const mountBangumi = (
       files.find((item) => records[item]?.id === remembered) ?? files[0];
     if (index === undefined) return;
     go(index, { axis: "lane", direction });
+    interfaceUI?.collapseOverview();
+  };
+
+  /**
+   * 在总览中切换目标月份列。
+   *
+   * 优先恢复该列记住的番剧，随后复用普通列导航轨迹。
+   *
+   * @param lane 目标月份列在阵列中的索引。
+   * @returns 月份列有效且可选择时返回真。
+   */
+  const selectOverviewColumn = (lane: number) => {
+    if (
+      !overview ||
+      !Number.isInteger(lane) ||
+      lane < 0 ||
+      lane >= archiveColumns.length
+    )
+      return false;
+    if (fileLocation(selected).lane === lane) return true;
+    const files = columnFiles(lane);
+    const remembered = columnMemory.get(archiveColumns[lane]);
+    const index =
+      files.find((item) => records[item]?.id === remembered) ?? files[0];
+    if (index === undefined) return false;
+    go(index, {
+      axis: "lane",
+      direction: Math.sign(lane - fileLocation(selected).lane),
+    });
+    return true;
+  };
+
+  const setOverview = (next: boolean) => {
+    if (
+      overview === next ||
+      (next &&
+        (!ready || boot?.active || mode !== "archive" || !records.length))
+    )
+      return;
+    overview = next;
+    overviewRevealPending = !next;
+    interfaceUI?.setOverview(next, () => {
+      if (!overview && !disposed) scene.setMusicOverview(false);
+    });
+    if (next) scene.setMusicOverview(true);
   };
 
   const openCover = () => {
@@ -115,6 +178,7 @@ export const mountBangumi = (
       !scene ||
       !ready ||
       boot?.active ||
+      overview ||
       mode === "detail" ||
       !records.length
     )
@@ -142,10 +206,27 @@ export const mountBangumi = (
     scene?.resize();
   };
 
+  /**
+   * 更新当前激活的番剧舞台。
+   *
+   * 推进开场、场景动画和总览投影，并在退场完成后恢复浏览界面。
+   *
+   * @param now 当前时间，单位为秒。
+   */
   const tick = (now: number) => {
     if (disposed || !ready || !active || document.hidden) return;
     const opening = boot?.update(now);
     if (opening?.renderScene !== false) scene.update(now, opening?.cinema);
+    if (overview)
+      interfaceUI?.updateOverview(scene.getOverviewColumns(), selected);
+    if (
+      overviewRevealPending &&
+      scene.musicOverviewProgress < 0.02 &&
+      scene.musicArchiveReady
+    ) {
+      overviewRevealPending = false;
+      interfaceUI?.showBrowseAfterOverview();
+    }
     if (mode === "detail" && placed()) interfaceUI?.showDetail();
   };
 
@@ -161,6 +242,13 @@ export const mountBangumi = (
     }
   };
 
+  /**
+   * 处理番剧舞台的键盘导航。
+   *
+   * 在非输入控件中分发方向键、详情和总览快捷键，并避免拦截站点页签的回车。
+   *
+   * @param event 当前键盘、鼠标或滚轮事件。
+   */
   const onKey = (event: KeyboardEvent) => {
     if (!active || !ready || boot?.active) return;
     const target = event.target;
@@ -168,10 +256,24 @@ export const mountBangumi = (
       if (target.closest("input, textarea, select, [contenteditable=true]"))
         return;
       const outside = target.closest("button, a");
-      // Enter on the site tabs should activate that tab, not open a cover.
       if (outside && !root.contains(outside) && event.key === "Enter") return;
     }
+    if (
+      event.key.toLowerCase() === "v" &&
+      !event.altKey &&
+      !event.ctrlKey &&
+      !event.metaKey
+    ) {
+      event.preventDefault();
+      setOverview(!overview);
+      return;
+    }
     if (event.key === "Escape") {
+      if (overview) {
+        event.preventDefault();
+        setOverview(false);
+        return;
+      }
       if (mode !== "detail") return;
       event.preventDefault();
       closeCover();
@@ -191,6 +293,7 @@ export const mountBangumi = (
       stepGenre(1);
     } else if (
       event.key === "Enter" &&
+      !overview &&
       !(target instanceof Element && target.closest("button, a"))
     ) {
       event.preventDefault();
@@ -208,6 +311,17 @@ export const mountBangumi = (
     month: stepGenre,
     open: openCover,
     back: closeCover,
+    overview: () => setOverview(!overview),
+    overviewReturn: () => setOverview(false),
+    overviewColumn: selectOverviewColumn,
+    overviewEnter: (lane) => {
+      if (selectOverviewColumn(lane)) setOverview(false);
+    },
+    overviewRecord: (index) => {
+      if (!overview || !records[index]) return;
+      go(index);
+      setOverview(false);
+    },
   });
 
   const observer = new ResizeObserver(() => fit());
@@ -226,14 +340,11 @@ export const mountBangumi = (
   void (async () => {
     try {
       if (disposed) return;
-      scene.setMusicArrayMode("filled");
       scene.enableSelectionLighting();
-      scene.setLightingExperiment(DEFAULT_LIGHTING_PRESET);
       scene.setReduced(reduced);
       await scene.load(undefined, selected);
       if (disposed) return;
-      scene.setTheme("night");
-      scene.setQuality(qualityPresets.original);
+      scene.prepareRenderQuality();
       scene.renderer.domElement.setAttribute(
         "aria-label",
         "三维番剧阵列，左右切月份，上下切番剧",
@@ -251,6 +362,7 @@ export const mountBangumi = (
           else scene?.finishMusicIntro(now);
           mode = "archive";
           interfaceUI?.showBrowse();
+          interfaceUI?.setOverviewReady(true);
         },
       });
       scene.onSelect = (index, cell) => {
@@ -259,11 +371,17 @@ export const mountBangumi = (
           if (index !== selected) go(index, cell ? { cell } : undefined);
           return;
         }
+        if (overview) {
+          if (index !== selected) go(index, cell ? { cell } : undefined);
+          setOverview(false);
+          return;
+        }
         if (index === selected) openCover();
         else go(index, cell ? { cell } : undefined);
       };
       scene.onNavigate = (axis, direction) => {
         if (!ready || boot?.active || mode !== "archive") return;
+        if (overview && interfaceUI?.overviewIsGrid) return;
         if (axis === "lane") stepGenre(direction);
         else stepAlbum(direction);
       };
@@ -272,6 +390,7 @@ export const mountBangumi = (
           active &&
           ready &&
           !boot?.active &&
+          !interfaceUI?.overviewIsGrid &&
           columnFiles(fileLocation(selected).lane).length > 1,
         navigate: stepAlbum,
         context: () => fileLocation(selected).lane,

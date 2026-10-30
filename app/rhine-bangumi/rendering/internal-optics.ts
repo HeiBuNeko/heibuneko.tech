@@ -30,6 +30,14 @@ const surfaces: Record<
   },
 };
 
+/**
+ * 配置盒体内部光学层的渲染顺序。
+ *
+ * 按遮挡与透射关系设置材质属性，避免玻璃层错误地覆盖内衬。
+ *
+ * @param name 当前内部光学表面的名称。
+ * @param mat 需要配置的盒体材质。
+ */
 export function configureInternalOptics(
   name: string,
   mat: THREE.MeshPhysicalMaterial,
@@ -42,10 +50,6 @@ export function configureInternalOptics(
   mat.clearcoat = 0.42;
   mat.clearcoatRoughness = 0.24;
   mat.opacity = surface.opacity;
-  // Three's outer transmission pass samples its opaque capture and omits other
-  // transmissive meshes. Composite these thin frosted layers into that capture
-  // with explicit alpha blending, after the opaque ribs/substrate. The exterior
-  // cover can then refract the complete interior in both scenes.
   mat.transmission = 0;
   mat.transparent = false;
   mat.blending = THREE.CustomBlending;
@@ -55,13 +59,19 @@ export function configureInternalOptics(
   mat.blendSrcAlpha = THREE.OneFactor;
   mat.blendDstAlpha = THREE.OneMinusSrcAlphaFactor;
   mat.depthWrite = false;
-  // These are closed volumes; rendering both shell faces doubles their density.
   mat.side = THREE.FrontSide;
   mat.userData.opticalOrder = surface.order;
 }
 
+/**
+ * 向片元 Shader 注入内部光学处理。
+ *
+ * 仅替换目标 Shader 片段，保留 Three.js 原有其他片段。
+ *
+ * @param source 待处理的 Shader 源码。
+ * @returns 注入后的片元 Shader 源码。
+ */
 export function internalOpticsFragment(source: string) {
-  // Grazing edges accumulate density while the face stays lightly frosted.
   return source.replace(
     "#include <opaque_fragment>",
     `diffuseColor.a = min(0.86, opacity + 0.42 * pow(1.0 - abs(dot(normal, normalize(vViewPosition))), 3.0));

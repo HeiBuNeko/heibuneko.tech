@@ -1,7 +1,11 @@
 import * as THREE from "three";
 import { damp, smooth } from "../motion/motion";
 
-/** A shared transition drives camera framing and real-column centering. */
+/**
+ * 管理总览相机与阵列共用的过渡进度。
+ *
+ * 使用同一进度控制镜头展开和盒体归位，避免两个动画脱节。
+ */
 export class MusicOverviewMotion {
   private progress = { value: 0, velocity: 0 };
   active = false;
@@ -19,10 +23,17 @@ export class MusicOverviewMotion {
   }
 }
 
+/**
+ * 计算总览镜头的目标构图。
+ *
+ * 按视口宽高比确定可见列数所需的跨度与镜头距离。
+ *
+ * @param width 视口或渲染区域的宽度。
+ * @param height 视口或渲染区域的高度。
+ * @returns 总览镜头的构图参数。
+ */
 export function overviewFraming(width: number, height: number) {
   const aspect = Math.max(1, width) / Math.max(1, height);
-  // Aim one physical column to the right, placing the unchanged selection left.
-  // Show about five columns in landscape and three on narrow portrait screens.
   return {
     span: Math.max(16.8, 18.5 / aspect),
     distance: 172,
@@ -34,20 +45,15 @@ export function overviewFraming(width: number, height: number) {
 
 export interface OverviewColumn {
   lane: number;
-  /** World identity of a repeated column, stable across local coordinate rebases. */
   physicalLane?: number;
   name: string;
   count: number;
   x: number;
   y: number;
   selected: boolean;
-  /** Shared physical edge visibility; omitted by static projection fixtures. */
   extent?: number;
-  /** Remaining lane distance before this repeated physical copy is replaced. */
-  copyClearance?: number;
 }
 
-/** Geometry is fixed for the viewport, never derived from neighbouring columns. */
 export function overviewLabelMetrics(width: number) {
   return {
     width: width < 600 ? 104 : 144,
@@ -69,6 +75,15 @@ export interface OverviewBounds {
   obstacles?: OverviewRect[];
 }
 
+/**
+ * 建立投影名牌及引线的碰撞矩形。
+ *
+ * 箭头预留宽度计入名牌，细引线单独占用一条窄矩形。
+ *
+ * @param column 待检查的月份投影列。
+ * @param width 当前视口宽度，用于选择响应式名牌尺寸。
+ * @returns 名牌和引线各自的碰撞矩形。
+ */
 function labelRects(column: OverviewColumn, width: number): OverviewRect[] {
   const size = overviewLabelMetrics(width);
   return [
@@ -95,7 +110,17 @@ function rectClearance(a: OverviewRect, b: OverviewRect) {
   );
 }
 
-/** Space around the complete card, reserved arrow and leader. */
+/**
+ * 计算名牌到视口安全边界的最小净空。
+ *
+ * 同时检查名牌、箭头预留区与引线，负值表示已越界。
+ *
+ * @param column 待检查的月份投影列。
+ * @param width 视口或渲染区域的宽度。
+ * @param height 视口或渲染区域的高度。
+ * @param bounds 名牌可显示的视口边界。
+ * @returns 以 CSS 像素计的最小净空。
+ */
 export function overviewBoundaryClearance(
   column: OverviewColumn,
   width: number,
@@ -117,27 +142,11 @@ export function overviewBoundaryClearance(
   return distance;
 }
 
-/** Binary emergency guard during exit, never a persistent opacity target. */
-export function overviewLabelOpacity(
-  column: OverviewColumn,
-  width: number,
-  height: number,
-  bounds: OverviewBounds = { top: 115, bottom: height - 112 },
-) {
-  return Number(
-    (column.extent ?? 1) > 0 &&
-      overviewBoundaryClearance(column, width, height, bounds) > 0,
-  );
-}
-
-/** Positive separation of the complete reserved footprints, in CSS pixels. */
 export function overviewLabelClearance(
   a: OverviewColumn,
   b: OverviewColumn,
   width: number,
 ) {
-  // A leader is one pixel wide, not a full-width extension of the card.
-  // Using the enclosing rectangle needlessly hides ordinary diagonal neighbours.
   return Math.min(
     ...labelRects(a, width).flatMap((first) =>
       labelRects(b, width).map((second) => rectClearance(first, second)),
@@ -145,18 +154,19 @@ export function overviewLabelClearance(
   );
 }
 
-export function overviewCollisionOpacity(
-  a: OverviewColumn,
-  b: OverviewColumn,
-  width: number,
-) {
-  return Number(overviewLabelClearance(a, b, width) > 0);
-}
-
-/** V0.4.1's single projection model: select labels, never relocate their anchors.
- * Expanded/selected names come first; other retained names keep precedence.
- * Geometry decides membership; only the finite card transition controls alpha.
- * Distinct entry/exit thresholds prevent chatter without leaving faint names. */
+/**
+ * 从投影列中筛选可显示的月份名牌。
+ *
+ * 优先保留展开和选中的名牌，并按边界及相互碰撞检查确定显示集合。
+ *
+ * @param columns 场景提供的月份投影集合。
+ * @param width 视口或渲染区域的宽度。
+ * @param height 视口或渲染区域的高度。
+ * @param retained 上一帧仍显示的月份列集合。
+ * @param expandedLane 当前已展开的月份列索引。
+ * @param bounds 名牌可显示的视口边界。
+ * @returns 可以同时显示的投影列。
+ */
 export function visibleOverviewLabels(
   columns: OverviewColumn[],
   width: number,
@@ -164,7 +174,6 @@ export function visibleOverviewLabels(
   retained: ReadonlySet<number> = new Set(),
   expandedLane: number | null = null,
   bounds: OverviewBounds = { top: 115, bottom: height - 112 },
-  forecasts: ReadonlyMap<number, OverviewColumn>[] = [],
 ): OverviewColumn[] {
   const accepted: OverviewColumn[] = [];
   const ordered = [...columns].sort(
@@ -172,7 +181,6 @@ export function visibleOverviewLabels(
       Number(b.lane === expandedLane) - Number(a.lane === expandedLane) ||
       Number(b.selected) - Number(a.selected) ||
       Number(retained.has(b.lane)) - Number(retained.has(a.lane)) ||
-      // Stable physical order for retained labels, independent of camera height.
       (retained.has(a.lane) && retained.has(b.lane)
         ? a.lane - b.lane
         : Number(b.selected) - Number(a.selected) ||
@@ -180,37 +188,15 @@ export function visibleOverviewLabels(
   );
   for (const column of ordered) {
     const keep = retained.has(column.lane);
-    // A folding pool-edge occurrence does not receive a detached name card.
     if ((column.extent ?? 1) <= (keep ? 0.98 : 0.995)) continue;
     if (
       overviewBoundaryClearance(column, width, height, bounds) <= (keep ? 4 : 8)
     )
       continue;
-    // Reserve the finite exit before contact, folding or a repeated-copy swap.
-    // Forecasts decide membership only; the returned anchor is always current.
-    if (
-      forecasts.some((forecast) => {
-        const future = forecast.get(column.lane) ?? column;
-        return (
-          (future.extent ?? 1) <= (keep ? 0.98 : 0.995) ||
-          (future.copyClearance ?? Infinity) <= 0 ||
-          overviewBoundaryClearance(future, width, height, bounds) <= 0
-        );
-      })
-    )
-      continue;
     if (
       accepted.some(
         (other) =>
-          overviewLabelClearance(column, other, width) <= (keep ? 8 : 10) ||
-          forecasts.some(
-            (forecast) =>
-              overviewLabelClearance(
-                forecast.get(column.lane) ?? column,
-                forecast.get(other.lane) ?? other,
-                width,
-              ) <= 0,
-          ),
+          overviewLabelClearance(column, other, width) <= (keep ? 8 : 10),
       )
     )
       continue;
@@ -220,10 +206,14 @@ export function visibleOverviewLabels(
 }
 
 /**
- * The nine-column pool recycles at ±4.5 lanes. In overview, tuck each outer
- * column into the shelf before that boundary and unfold it from the opposite
- * edge. Only vertical extent changes; cover width and depth stay constant.
- * Complete the blend before the camera reaches the wide overview framing.
+ * 计算总览中循环池边缘列的展开比例。
+ *
+ * 在阵列副本回收边界前收起列高，避免突然切换可见几何体。
+ *
+ * @param lane 目标月份列在阵列中的索引。
+ * @param centerLane 当前镜头对齐的阵列列坐标。
+ * @param overview 总览镜头与阵列的过渡进度。
+ * @returns 零到一之间的列高比例。
  */
 export function musicOverviewColumnExtent(
   lane: number,

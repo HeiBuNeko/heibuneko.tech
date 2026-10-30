@@ -14,6 +14,12 @@ type SceneShellProps = {
   > | null>;
 };
 
+/**
+ * 生成场景背景星点的位置数组。
+ *
+ * 使用稳定的确定性分布，避免 React 重渲染时出现随机跳变。
+ * @returns 供星点几何体使用的位置数据。
+ */
 function starPositions() {
   const positions = new Float32Array(140 * 3);
   let seed = 417;
@@ -27,6 +33,14 @@ function starPositions() {
   return positions;
 }
 
+/**
+ * 声明场景基础灯光、地面和星点对象。
+ *
+ * 把对象引用交给命令式场景控制器，资源随 R3F 组件卸载。
+ *
+ * @param props 场景内容及灯光、地面、星点对象引用。
+ * @returns 场景基础对象的 React 元素。
+ */
 export function SceneShell({
   content,
   keyLight,

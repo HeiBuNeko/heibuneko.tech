@@ -412,7 +412,6 @@
   font-size: 10px;
 }
 
-/* Original Rhine Music title and number reels, adapted for the Bangumi labels. */
 .bangumi-stage .music-rolling-text,
 .bangumi-stage .music-rolling-number {
   --rn-blur: 0;

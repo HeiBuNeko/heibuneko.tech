@@ -35,7 +35,17 @@ function spring(value: number): Spring {
   return { value, velocity: 0 };
 }
 
-/** Exact critically damped integration keeps reversals continuous. */
+/**
+ * 按临界阻尼逼近刻度目标位置。
+ *
+ * 限制过冲并保留可用速度，使连续选片仍保持平滑。
+ *
+ * @param state 需要原位更新的运动状态。
+ * @param target 当前动画或灯光的目标值。
+ * @param seconds 动画步长或收敛时长，单位为秒。
+ * @param instant 是否立即完成位置更新。
+ * @returns 本次是否仍发生运动。
+ */
 function approach(
   state: Spring,
   target: number,
@@ -50,8 +60,6 @@ function approach(
     state.velocity = 0;
     return false;
   }
-  // Same 10 / 460 ms critically damped response as the title/number reels.
-  // Preserve velocity on retargeting so repeated jumps and reversals join up.
   const frequency = 10 / 0.46;
   const delta = state.value - target;
   const decay = Math.exp(-frequency * seconds);
@@ -61,7 +69,14 @@ function approach(
   return true;
 }
 
-/** A bounded, reusable ruler; the selected tick itself grows, with no overlay. */
+/**
+ * 建立可复用的番剧导航刻度。
+ *
+ * 维护可见刻度池、测量布局和选择动画，卸载时销毁相关节点。
+ *
+ * @param host 后处理所对应的 DOM 容器。
+ * @returns 刻度更新与销毁句柄。
+ */
 export function setupMusicRuler(host: HTMLElement) {
   const events = new AbortController();
   const reducedQuery = matchMedia("(prefers-reduced-motion: reduce)");
@@ -84,7 +99,6 @@ export function setupMusicRuler(host: HTMLElement) {
     return motionTime;
   };
   const unsubscribeSpeed = onMusicMotionSpeedChange((speed) => {
-    // Keep ripple delays and spring progress on the same continuous clock.
     motionNow(performance.now());
     motionSpeed = speed;
   });
@@ -166,6 +180,11 @@ export function setupMusicRuler(host: HTMLElement) {
             Math.min(items.length - CAPACITY, selectedOrdinal - ANCHOR),
           );
 
+  /**
+   * 测量刻度所在容器与文字的实际尺寸。
+   *
+   * 把读布局与写样式分开，避免动画过程中重复强制排版。
+   */
   function measure() {
     const css = getComputedStyle(host);
     const read = (name: string, fallback: number) =>
@@ -189,6 +208,13 @@ export function setupMusicRuler(host: HTMLElement) {
     }
   }
 
+  /**
+   * 同步一个复用刻度的当前记录与可访问状态。
+   *
+   * 空槽位会清除旧记录的选择属性，避免循环复用时指向错误番剧。
+   *
+   * @param slot 需要更新的刻度槽位。
+   */
   function labelSlot(slot: RulerSlot) {
     const item = itemAt(slot.ordinal);
     const active = Boolean(item) && slot.ordinal === selectedOrdinal;
@@ -197,7 +223,6 @@ export function setupMusicRuler(host: HTMLElement) {
     slot.button.setAttribute("aria-pressed", String(active));
     if (item) {
       slot.button.dataset.select = String(item.index);
-      // Preserve the particular visible occurrence when a loop edge is clicked.
       slot.button.dataset.rulerStep = String(slot.ordinal - selectedOrdinal);
       slot.button.setAttribute("aria-label", `选择番剧 ${item.title}`);
       slot.button.title = item.title;
@@ -209,8 +234,11 @@ export function setupMusicRuler(host: HTMLElement) {
     }
   }
 
-  // Only offscreen slots are recycled. Crossing an album/category boundary
-  // never replaces the visible window or resets its fractional scroll position.
+  /**
+   * 回收离开可见窗口的刻度节点。
+   *
+   * 保留节点池供后续导航复用，减少频繁创建 DOM。
+   */
   function recycle() {
     if (!overflowing()) return;
     const start = Math.floor(scroll.value) - OVERSCAN;
@@ -218,8 +246,6 @@ export function setupMusicRuler(host: HTMLElement) {
     const free = slots.filter((slot) => {
       if (slot.ordinal >= start && slot.ordinal < end) return false;
       const x = (slot.ordinal - scroll.value) * step + slot.offset.value;
-      // A category transition may still carry a displayed position offset.
-      // Retain that physical tick until it has really left the viewport.
       return (
         slot.presence.value <= 0.025 ||
         x + tickWidth <= 0.5 ||
@@ -250,6 +276,16 @@ export function setupMusicRuler(host: HTMLElement) {
     }
   }
 
+  /**
+   * 渲染当前可见刻度及其状态。
+   *
+   * 复用节点并根据选中项与布局计算位置，避免每次导航重建全部刻度。
+   *
+   * @param now 当前动画时间戳，单位为毫秒。
+   * @param seconds 动画步长或收敛时长，单位为秒。
+   * @param forceInstant 是否跳过当前刻度动画直接排布。
+   * @returns 刻度或波纹是否仍需后续动画帧。
+   */
   function render(now: number, seconds: number, forceInstant = false) {
     const instant = forceInstant || instantMotion();
     let moving = approach(scroll, scrollTarget, seconds, instant);
@@ -273,7 +309,6 @@ export function setupMusicRuler(host: HTMLElement) {
         approach(slot.presence, presenceTarget, seconds, instant) || moving;
       moving = approach(slot.offset, 0, seconds, instant) || moving;
       slot.x = (slot.ordinal - scroll.value) * step + slot.offset.value;
-      // Hidden overscan and departing ticks are never focusable or clickable.
       const visible =
         valid &&
         (instant || revealed) &&
@@ -289,7 +324,6 @@ export function setupMusicRuler(host: HTMLElement) {
       const rippleProgress = (now - slot.rippleAt) / RIPPLE_DURATION;
       const rippling =
         !instant && valid && rippleProgress >= 0 && rippleProgress < 1;
-      // Unselected category ripples only contract the resting gray tick.
       const contraction = rippling
         ? 0.4 * Math.sin(Math.PI * rippleProgress)
         : 0;
@@ -352,14 +386,20 @@ export function setupMusicRuler(host: HTMLElement) {
     frame = requestAnimationFrame(animate);
   }
 
+  /**
+   * 在布局变化后重新组织刻度节点。
+   *
+   * 保留当前选择与运动状态，并按新尺寸重新分组。
+   *
+   * @param now 当前动画时间戳，单位为毫秒。
+   * @param instant 是否立即完成位置更新。
+   */
   function regroup(now: number, instant: boolean) {
     scrollTarget = selectionScroll();
     scroll.value = scrollTarget;
     scroll.velocity = 0;
     const start = overflowing() ? Math.floor(scroll.value) - OVERSCAN : 0;
     const ordinals = Array.from({ length: POOL_SIZE }, (_, i) => start + i);
-    // Assign visible destinations first, matching their currently displayed x.
-    // This preserves existing bars while extra bars unfold or collapse.
     ordinals.sort((a, b) => {
       const aVisible =
         validOrdinal(a) && a - scroll.value >= 0 && a - scroll.value < CAPACITY;
@@ -383,8 +423,6 @@ export function setupMusicRuler(host: HTMLElement) {
       slot.offset.value = instant || !wasVisible ? 0 : slot.x - x;
       if (instant || !wasVisible) slot.offset.velocity = 0;
       if (!wasVisible) {
-        // An invisible pool node has no displayed position to preserve. Place
-        // it directly at its new destination before fading it into the ruler.
         slot.presence.value = slot.presence.velocity = 0;
         slot.height.value = restHeight;
         slot.height.velocity = 0;
@@ -411,13 +449,22 @@ export function setupMusicRuler(host: HTMLElement) {
     render(motionNow(performance.now()), 0, instantMotion());
     schedule();
   };
-  // The host width is animated by this controller, so observing it would cause
-  // self-triggered layout updates. CSS breakpoint sizes only need window resize.
   window.addEventListener("resize", onResize, { signal: events.signal });
   reducedQuery.addEventListener("change", onReduced);
   measure();
 
   return {
+    /**
+     * 同步刻度数据与选中项。
+     *
+     * 根据导航方向安排入退场和位置更新，不改变外部选择状态。
+     *
+     * @param nextItems 当前月份列的新刻度数据。
+     * @param selected 当前选中的番剧索引或状态。
+     * @param reduceMotion 是否启用减少动态效果。
+     * @param navigation 本次选片的导航上下文。
+     * @param loop 刻度导航是否在当前列内循环。
+     */
     update(
       nextItems: MusicRulerItem[],
       selected: number,
@@ -471,7 +518,6 @@ export function setupMusicRuler(host: HTMLElement) {
         } else selectedOrdinal = row;
         scrollTarget = selectionScroll();
       }
-      // Metadata refreshes and repeated selection updates do not restart motion.
       slots.forEach(labelSlot);
       populated = populated || items.length > 0;
       render(now, 0, first || instantMotion());

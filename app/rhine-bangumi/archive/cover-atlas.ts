@@ -6,7 +6,6 @@ import {
   MUSIC_COVER,
 } from "../rendering/music-model";
 
-// Paper insert inside the thin lid, shared by shelf, selection and viewer.
 export const COVER_SIZE = MUSIC_COVER;
 export type CoverImage = {
   source: CanvasImageSource;
@@ -22,8 +21,6 @@ type DecodeJob = {
   image?: HTMLImageElement;
 };
 export const COVER_PAINT_SIZE = 1024;
-// Use the same UV margin at every texture resolution. A fixed two-pixel inset
-// made the 256px atlas artwork smaller than its 1024px lifted/returning copy.
 export const COVER_INSET = 1 / 64;
 const COVER_PAINT_MARGIN = COVER_PAINT_SIZE * COVER_INSET;
 
@@ -47,12 +44,17 @@ export function containCover(
   };
 }
 
+/**
+ * 将封面绘制到图集瓦片。
+ *
+ * 先清空瓦片，再将可用封面按比例缩放并居中绘制；缺失时保持空瓦片。
+ *
+ * @param canvas 承载封面绘制的画布。
+ * @param image 可选的已解码封面；缺失时只清空瓦片。
+ */
 export function paintCover(canvas: HTMLCanvasElement, image?: CoverImage) {
   const context = canvas.getContext("2d");
   if (!context) return;
-  // Paint in one logical coordinate space. A missing decode stays blank until
-  // the real cover arrives. Ownership can move between atlas, selection and
-  // snapshot without rescaling art.
   const width = COVER_PAINT_SIZE,
     height = COVER_PAINT_SIZE,
     margin = COVER_PAINT_MARGIN;
@@ -81,7 +83,11 @@ export function paintCover(canvas: HTMLCanvasElement, image?: CoverImage) {
   );
 }
 
-/** One fixed-size atlas for the visible pool, regardless of total library size. */
+/**
+ * 管理番剧封面图集与选中封面的 GPU 资源。
+ *
+ * 负责图片解码队列、瓦片上传、选中封面替换和卸载时释放。
+ */
 export class CoverAtlas {
   readonly array: THREE.InstancedMesh;
   readonly selected: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshLambertMaterial>;
@@ -124,14 +130,22 @@ export class CoverAtlas {
   private readonly tileWidth: number;
   private readonly tileHeight: number;
 
+  /**
+   * 建立图集画布、纹理和封面实例。
+   *
+   * 资源由当前 CoverAtlas 持有，调用 dispose 时统一释放。
+   *
+   * @param count 可用单元或记录的数量。
+   * @param maxTextureSize 设备支持的最大纹理尺寸。
+   * @param anisotropy 设备允许的纹理各向异性上限。
+   * @param lighting 用于封面印刷层的动态照明控制器。
+   */
   constructor(
     count: number,
     maxTextureSize: number,
     anisotropy: number,
     lighting?: MusicSelectionLighting,
   ) {
-    // Keep the enlarged 612-slot shelf below an 8192px texture edge at the
-    // existing 256px cover resolution; preserve smaller pools' original grid.
     this.columns = count > 512 ? 24 : 16;
     this.rows = Math.ceil(count / this.columns);
     this.tileWidth = Math.min(
@@ -146,8 +160,6 @@ export class CoverAtlas {
     this.tileCanvas.height = this.tileHeight;
     this.uploadCanvas.width = this.tileWidth;
     this.uploadCanvas.height = this.tileHeight;
-    // This CPU-only source is copied directly into a subregion of the atlas.
-    // It must never be initialized as a separate GPU texture.
     this.uploadTexture = new THREE.Texture(this.uploadCanvas);
     this.uploadTexture.colorSpace = THREE.SRGBColorSpace;
     this.uploadTexture.generateMipmaps = false;
@@ -156,11 +168,8 @@ export class CoverAtlas {
     this.slotKeys = Array(count);
     this.atlas = new THREE.CanvasTexture(this.atlasCanvas);
     this.atlas.colorSpace = THREE.SRGBColorSpace;
-    // No whole-atlas mip pyramid: independent transparent tile margins prevent bleed.
     this.atlas.generateMipmaps = false;
     this.atlas.minFilter = THREE.LinearFilter;
-    // Atlas derivatives at steep shelf angles must not sample another tile.
-    // Detailed selected art keeps anisotropic filtering on its own texture.
     this.atlas.anisotropy = 1;
     this.atlas.userData.maxAnisotropy = 1;
     this.selectedTexture = new THREE.CanvasTexture(this.selectedCanvas);
@@ -193,8 +202,6 @@ export class CoverAtlas {
     );
     this.coverReady.setUsage(THREE.DynamicDrawUsage);
     geometry.setAttribute("coverReady", this.coverReady);
-    // Instances, selected art and snapshots use one matte diffuse material and
-    // one moving light field; no ownership-specific brightness/scale switches.
     const makePrint = (texture: THREE.Texture) => {
       const print = createAlbumPrintMaterial(texture);
       const compile = print.onBeforeCompile;
@@ -265,6 +272,15 @@ export class CoverAtlas {
     return image;
   }
 
+  /**
+   * 异步解码单张封面图片。
+   *
+   * 复用已缓存结果；无地址、加载失败或图集已释放时返回 undefined。
+   *
+   * @param url 封面图片的请求地址。
+   * @param priority 本次封面请求在解码队列中的优先级。
+   * @returns 解码后的封面，或不可用时的 undefined。
+   */
   private loadImage(url?: string, priority = false) {
     if (!url) return Promise.resolve(undefined);
     if (this.disposed) return Promise.resolve(undefined);
@@ -304,6 +320,11 @@ export class CoverAtlas {
     return pending;
   }
 
+  /**
+   * 按并发预算推进封面解码队列。
+   *
+   * 完成的图片会进入待绘制队列，避免同时解码过多封面。
+   */
   private pumpDecodes() {
     while (
       !this.disposed &&
@@ -323,8 +344,6 @@ export class CoverAtlas {
         .then(() => {
           if (this.disposed || job.generation !== this.generation)
             return undefined;
-          // Background slots only retain tile-sized thumbnails. Priority can
-          // upgrade an in-flight source before its canvas is produced.
           const width = image.naturalWidth,
             height = image.naturalHeight;
           const scale = Math.min(1, job.size / Math.max(width, height));
@@ -375,9 +394,15 @@ export class CoverAtlas {
     }
   }
 
+  /**
+   * 生成封面请求的稳定缓存键。
+   *
+   * 把记录标识和封面地址组合，避免不同记录共用错误图片。
+   *
+   * @param record 当前选择的番剧记录。
+   * @returns 可用于缓存查询的键。
+   */
   private recordKey(record: ArchiveRecord | undefined) {
-    // Description/metadata refreshes replace record objects without changing
-    // their print. Cache only the visual identity, not the object reference.
     if (!record) return "";
     let key = this.recordKeys.get(record);
     if (key === undefined) {
@@ -392,6 +417,15 @@ export class CoverAtlas {
     return key;
   }
 
+  /**
+   * 把现有封面复制到目标画布。
+   *
+   * 只有仍与当前槽位或选中记录匹配的封面才会被复制。
+   *
+   * @param canvas 承载封面绘制的画布。
+   * @param key 待复制封面的稳定缓存键。
+   * @returns 找到匹配封面并完成复制时返回真。
+   */
   private copyCover(canvas: HTMLCanvasElement, key: string) {
     const selected = this.selectedKey === key && canvas !== this.selectedCanvas;
     const slot = selected ? -1 : this.slotKeys.indexOf(key);
@@ -400,7 +434,6 @@ export class CoverAtlas {
     if (!context) return false;
     context.setTransform(1, 0, 0, 1, 0, 0);
     context.clearRect(0, 0, canvas.width, canvas.height);
-    // Copy the whole painted tile, including its UV inset, exactly once.
     if (selected)
       context.drawImage(this.selectedCanvas, 0, 0, canvas.width, canvas.height);
     else
@@ -418,20 +451,31 @@ export class CoverAtlas {
     return true;
   }
 
+  /**
+   * 更新阵列槽位关联的番剧封面。
+   *
+   * 异步结果仅写回仍匹配当前记录的槽位，防止旧请求覆盖新选择。
+   *
+   * @param slot 图集或阵列中的目标槽位。
+   * @param record 当前选择的番剧记录。
+   */
   setSlot(slot: number, record: ArchiveRecord | undefined) {
     const key = this.recordKey(record);
     if (this.slotKeys[slot] === key) return;
     const image = this.cachedImage(record?.coverUrl);
-    // Reuse the target album's existing print before assigning this slot's
-    // identity; otherwise the lookup could copy the slot's previous album.
     if (image) paintCover(this.tileCanvas, image);
     else if (!this.copyCover(this.tileCanvas, key)) paintCover(this.tileCanvas);
     this.slotKeys[slot] = key;
-    // A recycled instance must not briefly display the previous album while
-    // its new tile waits for the bounded GPU upload budget.
     this.coverReady.setX(slot, 0);
     this.coverReady.needsUpdate = true;
     const generation = this.generation;
+    /**
+     * 将当前槽位的异步封面结果写入图集画布。
+     *
+     * 仅接受与当前图集版本和槽位记录匹配的结果，并标记待上传瓦片。
+     *
+     * @param image 已完成解码的封面；缺失时保留当前占位画面。
+     */
     const draw = (image?: CoverImage) => {
       if (
         this.disposed ||
@@ -455,6 +499,13 @@ export class CoverAtlas {
       });
   }
 
+  /**
+   * 切换抽出盒体的独立封面。
+   *
+   * 解码完成后更新选中纹理，过期选择的结果不写入当前材质。
+   *
+   * @param record 当前选择的番剧记录。
+   */
   async select(record: ArchiveRecord | undefined) {
     this.selectedRecord = record;
     const key = this.recordKey(record);
@@ -482,12 +533,17 @@ export class CoverAtlas {
       this.selectedKey !== key
     )
       return;
-    // A failed load clears the print. It must not leave an enlarged copy of a
-    // temporary 256px shelf tile.
     paintCover(this.selectedCanvas, image);
     this.selectedTexture.needsUpdate = true;
   }
 
+  /**
+   * 为归位副本保存当前封面外观。
+   *
+   * 复制必要材质或纹理状态，使副本不受后续选择变化影响。
+   *
+   * @param mesh 需要保存外观的封面网格。
+   */
   snapshot(mesh: THREE.Mesh) {
     const canvas = document.createElement("canvas");
     canvas.width = this.selectedCanvas.width;
@@ -505,19 +561,23 @@ export class CoverAtlas {
     mesh.userData.coverDisposed = false;
     void this.loadImage(record?.coverUrl, true).then((image) => {
       if (mesh.userData.coverDisposed || this.disposed) return;
-      // A pending original may fail after the selection has moved on. Clear
-      // the snapshot instead of keeping a temporary shelf tile.
       paintCover(canvas, image);
       texture.needsUpdate = true;
     });
   }
 
-  /** Up to 8 × 256² RGBA pixels (2 MiB), instead of re-uploading 108 MiB. */
+  /**
+   * 在单帧上传预算内提交图集更新。
+   *
+   * 限制 CPU 到 GPU 的瓦片传输量，剩余更新留到后续帧。
+   *
+   * @param renderer 场景使用的 WebGL 渲染器。
+   * @param maxTiles 本帧允许上传的最大瓦片数。
+   * @returns 本次实际上传的瓦片数量。
+   */
   flushUploads(renderer: THREE.WebGLRenderer, maxTiles = 8) {
     if (this.disposed || !this.dirtySlots.size) return 0;
     if (!this.gpuInitialized) {
-      // Allocate immutable GPU storage without synchronously uploading the
-      // full CPU canvas. Subsequent slots arrive through texSubImage2D copies.
       this.atlas.source.dataReady = false;
       try {
         renderer.initTexture(this.atlas);
@@ -546,7 +606,6 @@ export class CoverAtlas {
         this.tileWidth,
         this.tileHeight,
       );
-      // Canvas rows run downwards; WebGL destination origins run upwards.
       destination.set(x, this.atlasCanvas.height - y - this.tileHeight);
       renderer.copyTextureToTexture(
         this.uploadTexture,
@@ -567,7 +626,14 @@ export class CoverAtlas {
     return uploaded;
   }
 
-  /** Bounded wait for the currently visible requests; no whole-library preload. */
+  /**
+   * 等待首屏所需封面达到可显示状态。
+   *
+   * 等待时间受上限约束，失败的图片沿用占位封面。
+   *
+   * @param timeoutMs 等待首屏封面的最长时间，单位为毫秒。
+   * @returns 等待是否完成及当前图集统计。
+   */
   async prepareVisible(timeoutMs = 1200) {
     const pending = [...this.pendingImages.values()];
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -586,6 +652,12 @@ export class CoverAtlas {
     return { settled, ...this.getStats() };
   }
 
+  /**
+   * 汇总封面图集的加载与上传状态。
+   *
+   * 读取当前队列和缓存计数，不触发新的解码或 GPU 上传。
+   * @returns 当前图集的统计快照。
+   */
   getStats() {
     return {
       atlasWidth: this.atlasCanvas.width,
@@ -607,6 +679,11 @@ export class CoverAtlas {
     };
   }
 
+  /**
+   * 取消当前图集的待处理图片解码。
+   *
+   * 终止排队和进行中的请求，并清空解码缓存以释放内存。
+   */
   private cancelDecodes() {
     for (const job of this.decodeQueue.splice(0)) job.resolve(undefined);
     for (const job of this.activeJobs) {
@@ -619,6 +696,11 @@ export class CoverAtlas {
     this.decodedPixels = 0;
   }
 
+  /**
+   * 为新一轮图集内容重置状态。
+   *
+   * 递增请求版本、取消旧解码并使所有封面槽位重新等待上传。
+   */
   reset() {
     this.generation++;
     this.slotKeys.fill(undefined);
@@ -629,6 +711,11 @@ export class CoverAtlas {
     this.coverReady.array.fill(0);
     this.coverReady.needsUpdate = true;
   }
+  /**
+   * 释放图集持有的异步任务和 GPU 资源。
+   *
+   * 取消待处理解码，并销毁纹理、材质及实例几何体。
+   */
   dispose() {
     this.disposed = true;
     this.generation++;

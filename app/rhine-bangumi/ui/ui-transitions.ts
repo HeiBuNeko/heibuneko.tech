@@ -6,7 +6,20 @@ import {
 const enterEase = "cubic-bezier(0.22, 1, 0.36, 1)";
 const exitEase = "cubic-bezier(0.4, 0, 1, 1)";
 
-/** Owns the visible lifetime, including a close that interrupts an opening. */
+/**
+ * 创建可中断的界面显隐过渡。
+ *
+ * 使用 Web Animations API 保持反向切换的当前透明度，并跟随全局动画速度。
+ *
+ * @param root 当前场景或界面的根 DOM 元素。
+ * @param panel 参与过渡的内容元素。
+ * @param enterDuration 入场动画的基础时长，单位为毫秒。
+ * @param exitDuration 退场动画的基础时长，单位为毫秒。
+ * @param direction 导航方向或过渡方向。
+ * @param enterEasing 入场动画使用的缓动曲线。
+ * @param fadeTargets 需要共同执行透明度过渡的元素。
+ * @returns 显示、隐藏、加速结束及销毁控制句柄。
+ */
 export function createSurfaceTransition(
   root: HTMLElement,
   panel?: HTMLElement,
@@ -14,8 +27,6 @@ export function createSurfaceTransition(
   exitDuration = 200,
   direction: "up" | "right" = "up",
   enterEasing = enterEase,
-  // Separate overlays can fade together without changing their common
-  // ancestor's stacking context or flattening them into a full-screen layer.
   fadeTargets: readonly HTMLElement[] = [root],
 ) {
   let animations: Animation[] = [];
@@ -29,10 +40,17 @@ export function createSurfaceTransition(
       }
     | undefined;
 
+  /**
+   * 开始或继续显示界面。
+   *
+   * 若入场被退场中断，则从当前透明度恢复而非重播完整动画。
+   *
+   * @param reduced 是否启用减少动态效果。
+   * @param enterDelay 入场前的等待时间，单位为毫秒。
+   * @param onShow 入场开始后的回调。
+   */
   function show(reduced: boolean, enterDelay = 0, onShow?: () => void) {
     cancelEnterLead();
-    // A hidden surface can wait for its reading field without exposing text
-    // or shortening the existing entrance. Visible reversals resume in place.
     if (
       !reduced &&
       root.hidden &&
@@ -59,14 +77,26 @@ export function createSurfaceTransition(
     onShow?.();
   }
 
+  /**
+   * 开始或继续隐藏界面。
+   *
+   * 完成时调用回调；新的过渡会取消旧回调。
+   *
+   * @param reduced 是否启用减少动态效果。
+   * @param finished 退场完成后的回调。
+   */
   function hide(reduced: boolean, finished: () => void = () => {}) {
     cancelEnterLead();
     run(false, reduced, finished);
   }
 
-  /** Complete an already running exit before a moving obstacle arrives.
-   * Preserve currentTime and opacity: only its remaining playback rate changes.
-   * milliseconds uses the same unscaled clock as the configured duration. */
+  /**
+   * 提高当前退场动画的剩余播放速度。
+   *
+   * 保持当前透明度与时间位置，在指定时间内完成退出。
+   *
+   * @param milliseconds 允许退场剩余动画完成的时长，单位为毫秒。
+   */
   function finishWithin(milliseconds: number) {
     if (root.dataset.transition !== "closing" || !(milliseconds > 0)) return;
     const remaining = Math.max(
@@ -91,6 +121,11 @@ export function createSurfaceTransition(
     });
   }
 
+  /**
+   * 取消当前界面的全部过渡动画。
+   *
+   * 清理延迟入场及 Web Animations 对象，避免卸载后触发完成回调。
+   */
   function dispose() {
     revisionCounter++;
     cancelEnterLead();
@@ -105,6 +140,15 @@ export function createSurfaceTransition(
     enterLead = undefined;
   }
 
+  /**
+   * 执行一次界面显隐过渡。
+   *
+   * 取消旧动画并从当前计算样式续接，完成时按版本号避免旧回调覆盖新状态。
+   *
+   * @param show 本次过渡的目标是否为显示状态。
+   * @param reduced 是否启用减少动态效果。
+   * @param finished 退场完成后的回调。
+   */
   function run(show: boolean, reduced: boolean, finished?: () => void) {
     const revision = ++revisionCounter;
     exitRate = 1;
@@ -140,8 +184,6 @@ export function createSurfaceTransition(
       complete();
       return;
     }
-    // A late reversal travels a short distance. Replaying a full entrance here
-    // makes rapid open/back input feel sticky even when its first pixel matches.
     const distance = Math.max(
       ...opacities.map((opacity) => Math.abs((show ? 1 : 0) - Number(opacity))),
       0,

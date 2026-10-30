@@ -21,7 +21,15 @@ type SelectionText = {
   meta: string;
 };
 
-/** Keep the original archive's per-glyph reels alive across selection changes. */
+/**
+ * 建立番剧摘要文字的分段过渡。
+ *
+ * 测量换行、复用文字节点并在选择变化时驱动过渡。
+ *
+ * @param root 当前场景或界面的根 DOM 元素。
+ * @returns 文字更新与销毁句柄。
+ * @throws 必需的文字容器不存在时抛出异常。
+ */
 export function setupMusicTextMotion(root: HTMLElement) {
   const required = (id: string) => {
     const element = root.querySelector<HTMLElement>(`#${id}`);
@@ -37,14 +45,12 @@ export function setupMusicTextMotion(root: HTMLElement) {
     duration: musicMotionDuration(460),
     motionBlur: false,
     animated: false,
-    // Hidden browse text is prepared before the camera finishes its return.
     pauseOffscreen: false,
   };
   const pendingWraps = new Set<() => () => void>();
   let wrappingFrame = 0;
   const flushWrapping = () => {
     wrappingFrame = 0;
-    // Read both metadata blocks before changing either reel's DOM/display.
     const commits = [...pendingWraps].map((read) => read());
     pendingWraps.clear();
     commits.forEach((commit) => {
@@ -70,9 +76,15 @@ export function setupMusicTextMotion(root: HTMLElement) {
       stagger: "none",
       direction: "up",
     });
+  /**
+   * 建立可在滚动与自然换行间切换的文字控制器。
+   *
+   * 复用隐藏测量层计算真实宽度，不读取动画中的可见节点。
+   *
+   * @param id 需要绑定滚动文字的 DOM 元素 ID。
+   * @returns 文字更新、完成和销毁控制句柄。
+   */
   const wrappingText = (id: string) => {
-    // Auxiliary metadata keeps its native block width. Reels only own the
-    // inner single-line span; longer artist lists retain ordinary line wraps.
     const element = required(id);
     const reel = document.createElement("span");
     const plain = document.createElement("span");
@@ -98,6 +110,12 @@ export function setupMusicTextMotion(root: HTMLElement) {
       usingReel = true,
       measured = false,
       disposed = false;
+    /**
+     * 读取当前文字是否适合滚动单行显示。
+     *
+     * 先测量可用宽度，再返回统一提交 DOM 更新的闭包。
+     * @returns 一次布局提交函数。
+     */
     const readLayout = () => {
       if (disposed) return () => {};
       const style = getComputedStyle(element);
@@ -110,7 +128,6 @@ export function setupMusicTextMotion(root: HTMLElement) {
         const previouslyUsingReel = usingReel;
         usingReel = fits;
         if (!measured || fits !== previouslyUsingReel) {
-          // Inline display overrides the library's .rn-root rule while hidden.
           reel.style.display = fits ? "inline-block" : "none";
           plain.style.display = fits ? "none" : "inline";
         }
@@ -130,6 +147,13 @@ export function setupMusicTextMotion(root: HTMLElement) {
     document.fonts.addEventListener("loadingdone", schedule);
     void document.fonts.ready.then(schedule);
     return {
+      /**
+       * 更新单段可换行文字。
+       *
+       * 同步可见文本、测量文本和滚动控制器，并按需排队布局测量。
+       *
+       * @param options 当前文字、动画开关及持续时间的更新值。
+       */
       update(options: {
         text?: string;
         animated?: boolean;
@@ -149,7 +173,6 @@ export function setupMusicTextMotion(root: HTMLElement) {
           options.animated !== undefined && options.animated !== animated;
         if (options.animated !== undefined) animated = options.animated;
         if (changedText || !measured) schedule();
-        // Enabling the already measured current text needs no geometry reads.
         else if (changedMotion)
           controller.update({ animated: animated && usingReel });
       },
@@ -192,14 +215,21 @@ export function setupMusicTextMotion(root: HTMLElement) {
   const setEnabled = (next: boolean) => {
     if (enabled === next) return;
     enabled = next;
-    // Prepare the current glyphs before the next input, so the first selection
-    // after entering the archive animates just like subsequent selections.
     controllers.forEach((controller) => {
       controller.update({ animated: next });
     });
   };
   return {
     setEnabled,
+    /**
+     * 更新摘要中的数字与文字轨道。
+     *
+     * 根据行列导航方向设置滚动方向，再同步所有字段。
+     *
+     * @param value 当前输入或目标值。
+     * @param animated 是否播放过渡动画。
+     * @param navigation 本次选片的导航上下文。
+     */
     update(
       value: SelectionText,
       animated: boolean,

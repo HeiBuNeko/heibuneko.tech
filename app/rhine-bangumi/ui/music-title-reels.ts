@@ -17,7 +17,16 @@ const STEPS = 48;
 const IDLE_SLOTS = 64;
 type Sample = { value: number[]; velocity: number[] };
 
-/** The archive's direct reel uses the same critically damped 460 ms curve. */
+/**
+ * 创建单个标题字符的滚动轨道。
+ *
+ * 保存字符面片和运动状态，允许中途改选时从当前帧继续。
+ *
+ * @param element 需要更新的 DOM 元素。
+ * @param property 字符轨道需要更新的样式属性。
+ * @param format 把字符轨道数值转换为可见字形的函数。
+ * @returns 字符轨道控制句柄。
+ */
 function createTitleTrack(
   element: HTMLElement,
   property: "transform" | "height" | "clip-path",
@@ -28,6 +37,14 @@ function createTitleTrack(
   let velocity: number[] = [];
   let target: number[] = [];
 
+  /**
+   * 在当前字符轨道上采样位置和速度。
+   *
+   * 使用同一衰减曲线连接中途改选前后的字形，供新动画沿用当前速度。
+   *
+   * @param progress 当前动画进度。
+   * @returns 字形位置与对应速度的采样值。
+   */
   const at = (progress: number): Sample => {
     if (progress >= 1) return { value: target, velocity: target.map(() => 0) };
     const t = Math.max(0, progress);
@@ -63,6 +80,15 @@ function createTitleTrack(
     target = value;
     element.style.setProperty(property, format(value));
   };
+  /**
+   * 把字符轨道从当前采样值移动到新目标。
+   *
+   * 保留中断瞬间的速度和字形，避免快速切换时倒跳。
+   *
+   * @param destination 字符轨道的目标数值。
+   * @param from 字符轨道的当前采样值。
+   * @param completed 轨道到达目标后执行的回调。
+   */
   const move = (
     destination: number[],
     from = sample(),
@@ -97,7 +123,6 @@ function createTitleTrack(
       }),
     );
     animation = current;
-    // Give all glyphs a common timeline origin, including a newly added line.
     const now = element.ownerDocument.timeline.currentTime;
     if (typeof now === "number") current.startTime = now;
     current.onfinish = () => {
@@ -148,7 +173,15 @@ const blankFace: Face = {
   width: 0,
 };
 
-/** A bounded pool of actual character reels, with no glyph DOM measurements. */
+/**
+ * 管理标题字符的滚动与复用。
+ *
+ * 维护字符槽位、入退场和减少动态效果下的直接定位。
+ *
+ * @param visual 显示滚动字符的可见元素。
+ * @param spacer 为标题滚动预留空间的元素。
+ * @returns 标题滚动控制句柄。
+ */
 export function createTitleReels(visual: HTMLElement, spacer: HTMLElement) {
   const slots = new Map<string, Slot>();
   const reduced = matchMedia("(prefers-reduced-motion: reduce)");
@@ -161,9 +194,15 @@ export function createTitleReels(visual: HTMLElement, spacer: HTMLElement) {
   let settling = false;
   let revision = 0;
 
+  /**
+   * 更新字符轨道中的可见字形面片。
+   *
+   * 复用原有面片节点并维护可访问文本。
+   *
+   * @param slot 图集或阵列中的目标槽位。
+   * @param values 槽位需要显示的字形面片列表。
+   */
   const writeFaces = (slot: Slot, values: Face[]) => {
-    // Usually the visible pair plus one target. A simultaneous font-size change
-    // can expose a third smaller face; retain it instead of discarding pixels.
     while (slot.faces.length < values.length) {
       const face = document.createElement("span");
       face.className = "music-title-face";
@@ -193,6 +232,14 @@ export function createTitleReels(visual: HTMLElement, spacer: HTMLElement) {
     slot.host.style.width = `${Math.max(slot.glyph.width, ...slot.values.map((value) => value.width)) + 0.3}px`;
   };
 
+  /**
+   * 为新的标题字形创建轨道槽位。
+   *
+   * 建立字符面片及动画控制，后续交给复用池管理。
+   *
+   * @param glyph 需要创建槽位的标题字形。
+   * @returns 新建并已登记的字符槽位。
+   */
   const create = (glyph: TitleGlyph) => {
     const host = document.createElement("span");
     host.className = `music-title-slot music-title-slot-${glyph.kind}`;
@@ -237,6 +284,15 @@ export function createTitleReels(visual: HTMLElement, spacer: HTMLElement) {
     return slot;
   };
 
+  /**
+   * 把字符槽位滚动到目标字形。
+   *
+   * 以当前采样位置为起点，避免快速改选时从旧目标重新播放。
+   *
+   * @param slot 图集或阵列中的目标槽位。
+   * @param face 字符槽位下一步应显示的字形。
+   * @param animated 是否播放过渡动画。
+   */
   const rollTo = (slot: Slot, face: Face, animated: boolean) => {
     if (!animated) {
       writeFaces(slot, [face]);
@@ -252,8 +308,6 @@ export function createTitleReels(visual: HTMLElement, spacer: HTMLElement) {
     )
       first++;
     const offset = Math.max(0, position - slot.offsets[first]);
-    // Keep only faces intersecting the current viewport, then the newest target.
-    // DOM depends on the viewport/face-height ratio, never on input history.
     const values = [slot.values[first] || blankFace];
     const viewport = slot.viewport.sample().value[0] || slot.glyph.height;
     for (let index = first + 1; index < slot.values.length; index++) {
@@ -285,15 +339,17 @@ export function createTitleReels(visual: HTMLElement, spacer: HTMLElement) {
         ],
       },
       () => {
-        // Remove this reel's retired ink as soon as it finishes. Other reels
-        // may still be moving, or later input may postpone the pool cleanup.
-        // Capture the target: render() has not yet set active on a sync finish.
         writeFaces(slot, [face]);
         slot.roll.set([0]);
       },
     );
   };
 
+  /**
+   * 完成当前所有字符轨道的过渡。
+   *
+   * 将进行中的动画落到目标字形并清理过渡状态。
+   */
   const settle = () => {
     settling = false;
     const idle: string[] = [];
@@ -309,8 +365,6 @@ export function createTitleReels(visual: HTMLElement, spacer: HTMLElement) {
       }
     });
     height.finish();
-    // Short/long title changes reuse their slots; extreme libraries cannot
-    // retain an unbounded history of unused subtitle glyphs.
     for (const key of idle.slice(0, Math.max(0, idle.length - IDLE_SLOTS))) {
       slots.get(key)?.host.remove();
       slots.delete(key);
@@ -327,6 +381,15 @@ export function createTitleReels(visual: HTMLElement, spacer: HTMLElement) {
     get moving() {
       return settling;
     },
+    /**
+     * 把标题字形列表同步到轨道池。
+     *
+     * 复用相同位置的字符槽位，并为新增或退出的字形安排过渡。
+     *
+     * @param glyphs 当前标题的字形序列。
+     * @param nextHeight 标题布局的目标高度。
+     * @param animated 是否播放过渡动画。
+     */
     render(glyphs: TitleGlyph[], nextHeight: number, animated: boolean) {
       animated = animated && !reduced.matches && !document.hidden;
       const currentRevision = ++revision;
@@ -377,8 +440,6 @@ export function createTitleReels(visual: HTMLElement, spacer: HTMLElement) {
             slot.viewport.finished,
           );
         });
-        // A duration-based timer could truncate a reel after slowing it down.
-        // Completion follows the actual animation timelines, including retiming.
         void Promise.all(motions)
           .then(() => {
             if (currentRevision === revision) settle();

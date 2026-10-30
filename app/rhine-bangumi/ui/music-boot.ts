@@ -24,7 +24,6 @@ export interface MusicBootFrame {
   cinema: {
     reveal: number;
     lift: number;
-    zoom: number;
     time: number;
     musicIntro: true;
   };
@@ -45,7 +44,11 @@ type SavedSibling = {
   priority: string;
 };
 
-/** A frame-driven music prologue followed by the original live scene. */
+/**
+ * 管理番剧开场遮罩和阶段切换。
+ *
+ * 控制开场画面、跳过操作与正式场景的交接，卸载时释放动画和监听。
+ */
 export class MusicBoot {
   readonly root: HTMLElement;
   private readonly skipButton: HTMLButtonElement;
@@ -61,6 +64,14 @@ export class MusicBoot {
   private siblings: SavedSibling[] = [];
   private opener: HTMLElement | null = null;
 
+  /**
+   * 建立开场遮罩和跳过交互。
+   *
+   * 初始化 DOM 与时间轴；相应监听在 dispose 时清理。
+   *
+   * @param parent 开场内容挂载的 DOM 容器。
+   * @param options 场景或界面的初始化选项。
+   */
   constructor(
     private parent: HTMLElement,
     private options: MusicBootOptions = {},
@@ -99,13 +110,17 @@ export class MusicBoot {
     return this.running || this.revealing;
   }
 
-  start(nowSeconds = performance.now() / 1000, _forceMotion = false) {
+  start(nowSeconds = performance.now() / 1000) {
     this.begin(nowSeconds);
   }
-  replay(nowSeconds = performance.now() / 1000) {
-    this.start(nowSeconds);
-  }
 
+  /**
+   * 开始开场阶段的时间轴。
+   *
+   * 设置初始界面状态并启动需要的视觉过渡。
+   *
+   * @param nowSeconds 当前时间，单位为秒。
+   */
   private begin(nowSeconds: number) {
     if (this.disposed) return;
     if (!Number.isFinite(nowSeconds)) nowSeconds = performance.now() / 1000;
@@ -158,6 +173,14 @@ export class MusicBoot {
     if (this.running && !this.disposed) this.finish("skip");
   }
 
+  /**
+   * 按当前时间推进开场动画。
+   *
+   * 协调遮罩、文字和场景是否需要本帧渲染。
+   *
+   * @param nowSeconds 当前时间，单位为秒。
+   * @returns 本帧的开场控制状态。
+   */
   update(nowSeconds: number): MusicBootFrame | undefined {
     if (this.revealing && this.isReduced()) this.completeReveal();
     if (!this.running || this.disposed || !Number.isFinite(nowSeconds)) return;
@@ -186,12 +209,19 @@ export class MusicBoot {
       cinema: {
         reveal: ease((sceneTime - 21.9) / 0.13),
         lift: 0,
-        zoom: 0,
         time: sceneTime,
         musicIntro: true,
       },
     };
   }
+  /**
+   * 完成或跳过开场。
+   *
+   * 终止进行中的过渡并只调用一次交接回调。
+   *
+   * @param reason 开场结束或被跳过的原因。
+   * @param notify 是否通知外部开场完成回调。
+   */
   private finish(reason: "complete" | "skip", notify = true) {
     this.running = false;
     this.opening.root.hidden = true;
@@ -202,8 +232,6 @@ export class MusicBoot {
         node.style.setProperty("visibility", visibility, priority);
       else node.style.removeProperty("visibility");
     }
-    // The completion hook owns the camera endpoint and browse surface fade. It
-    // must run while active is false so showBrowseSurface can start normally.
     if (notify) this.options.onComplete?.(reason);
     this.revealFocus =
       document.activeElement instanceof HTMLElement &&
@@ -218,8 +246,6 @@ export class MusicBoot {
       return;
     }
 
-    // Snapshot the hook's final interaction state, then keep the whole stage
-    // locked until the controls are visible. All of this happens before paint.
     for (const sibling of this.siblings) {
       sibling.inert = sibling.node.inert;
       sibling.node.inert = true;
@@ -231,6 +257,14 @@ export class MusicBoot {
     this.root.setAttribute("aria-label", "正在显示番剧档案");
     this.root.focus({ preventScroll: true });
     const revision = ++this.revealRevision;
+    /**
+     * 按开场时间轴安排遮罩淡入淡出。
+     *
+     * 使用全局动态速度，避免跳过时留下仍运行的动画。
+     *
+     * @param selector 需要执行淡入淡出的目标元素选择器。
+     * @param delay 淡入开始前的延迟，单位为毫秒。
+     */
     const fade = (selector: string, delay = 0) => {
       const node = this.parent.querySelector<HTMLElement>(selector);
       if (!node || node.hidden) return;
@@ -249,22 +283,17 @@ export class MusicBoot {
       );
     };
     fade(".music-vignette");
-    // The fixed brand and navigation return together only after the 3D film.
     fade(".music-header");
     fade(".music-view-toggle");
     fade(".library-status", 45);
     fade(".music-bottomline", 90);
     fade(".music-empty", 60);
-    // SurfaceTransition owns the navigation container's opacity. Stagger its
-    // inner groups so the intro never reads/overrides that in-flight fade.
     for (const selector of [
       ".music-counter",
       ".album-stepper",
       ".genre-stepper",
     ])
       fade(selector, 110);
-    // Keep navigation geometry stable for the title's bottom clearance. Move
-    // callout/keyhint with independent translate, preserving existing transforms.
     for (const [selector, delay] of [
       [".album-callout", 60],
       [".music-keyhint", 140],

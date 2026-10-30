@@ -29,7 +29,15 @@ export function onMusicMotionSpeedChange(listener: (speed: number) => void) {
   };
 }
 
-/** Keep a base-duration WAAPI animation continuous when the speed changes. */
+/**
+ * 让界面动画跟随全局动态速度。
+ *
+ * 监听速度变化并更新当前 Web Animations 播放倍率，动画结束时解除订阅。
+ *
+ * @param animation 需要跟随全局速度的动画。
+ * @param rate 相对于全局动态速度的倍率回调。
+ * @returns 已接入速度同步的动画。
+ */
 export function followMusicMotionSpeed(
   animation: Animation,
   rate: () => number = () => 1,

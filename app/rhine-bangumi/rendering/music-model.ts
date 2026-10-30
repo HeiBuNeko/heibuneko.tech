@@ -1,8 +1,5 @@
 import * as THREE from "three";
-import type { ThemeTransition } from "./theme-transition";
 
-// Authored at final dimensions by art/build-music-case.mjs. The compact case
-// is 8% wider than the first 3.70-unit revision; artwork retains its dimensions.
 export const MUSIC_MODEL = {
   width: 3.996,
   height: 3.35,
@@ -10,21 +7,15 @@ export const MUSIC_MODEL = {
   center: { x: 0, y: 1.85, z: 0 },
 } as const;
 
-// Restore the original shelf's clear gap (.75), independent of case width.
-// Scene transforms, navigation and lighting must share this physical spacing.
 export const MUSIC_COLUMN_GAP = 0.75;
 export const MUSIC_COLUMN_SPACING = MUSIC_MODEL.width + MUSIC_COLUMN_GAP;
 
-// Keep the restored binding's absolute width while narrowing only the glass.
-// Its original .26-wide source was normalized from 4.3 to 4.45 scene units.
 const bindingWidth = 4.45 * (0.26 / 4.3);
 export const MUSIC_CASE_WIDTHS = {
   spine: bindingWidth,
   glass: MUSIC_MODEL.width - bindingWidth,
 } as const;
 
-// A replaceable paper insert, inside the cover: rear tray < print < front lid.
-// The plane never shares a depth with the cover or the retaining frame.
 export const MUSIC_COVER = {
   width: 2.98,
   height: 2.98,
@@ -33,87 +24,55 @@ export const MUSIC_COVER = {
   z: 0.027,
 } as const;
 
-export const MUSIC_CASE_LAYERS = {
-  rearFront: -0.032,
-  print: MUSIC_COVER.z,
-  lidBack: 0.052,
-  lidFront: MUSIC_MODEL.depth / 2,
-  spineRight: -MUSIC_MODEL.width / 2 + MUSIC_CASE_WIDTHS.spine,
-} as const;
-
 type GlassFinish = Pick<
   THREE.MeshPhysicalMaterial,
   "transmission" | "thickness" | "roughness" | "attenuationDistance"
 >;
-const MUSIC_GLASS_FINISH: Record<
-  string,
-  {
-    baseline: GlassFinish;
-    day: GlassFinish;
-    dayColor: string;
-  }
-> = {
+const MUSIC_GLASS_FINISH: Record<string, GlassFinish> = {
   Frosted_Polymer: {
-    baseline: {
-      transmission: 0.96,
-      thickness: 0.018,
-      roughness: 0.34,
-      attenuationDistance: 5,
-    },
-    day: {
-      transmission: 0.94,
-      thickness: 0.022,
-      roughness: 0.4,
-      attenuationDistance: 3.8,
-    },
-    dayColor: "#fffdf8",
+    transmission: 0.96,
+    thickness: 0.018,
+    roughness: 0.34,
+    attenuationDistance: 5,
   },
   Ivory_Edges: {
-    // Keep the accepted night/dusk finish. Daylight's brighter shelf and weaker
-    // additive scatter need real diffusion and density in the spine itself:
-    // it must obscure background detail more than the supporting tray does.
-    baseline: {
-      transmission: 0.88,
-      thickness: 0.06,
-      roughness: 0.25,
-      attenuationDistance: 4.5,
-    },
-    day: {
-      transmission: 0.64,
-      thickness: 0.1,
-      roughness: 0.52,
-      attenuationDistance: 2,
-    },
-    dayColor: "#e7e1d8",
+    transmission: 0.88,
+    thickness: 0.06,
+    roughness: 0.25,
+    attenuationDistance: 4.5,
   },
   Optical_Diffuser: {
-    baseline: {
-      transmission: 0.8,
-      thickness: 0.038,
-      roughness: 0.38,
-      attenuationDistance: 4.5,
-    },
-    day: {
-      transmission: 0.7,
-      thickness: 0.05,
-      roughness: 0.46,
-      attenuationDistance: 2,
-    },
-    dayColor: "#ece6dc",
+    transmission: 0.8,
+    thickness: 0.038,
+    roughness: 0.38,
+    attenuationDistance: 4.5,
   },
 };
 
+/**
+ * 初始化盒体几何体的边界数据。
+ *
+ * 仅执行一次边界计算，不缩放已有模型坐标。
+ *
+ * @param geometry 需要计算边界的盒体几何体。
+ * @returns 原几何体实例。
+ */
 export function normalizeMusicGeometry(geometry: THREE.BufferGeometry) {
   if (geometry.userData.musicDimensions) return geometry;
-  // Compatibility entry point for scene/viewer ownership. No post-load scaling:
-  // rounded corners, the inset seat and the cover gap are authored in one space.
   geometry.userData.musicDimensions = true;
   geometry.computeBoundingBox();
   geometry.computeBoundingSphere();
   return geometry;
 }
 
-/** All music contexts share the same three physical materials and insert gap. */
+/**
+ * 配置盒体使用的玻璃与内衬材质。
+ *
+ * 统一透射、粗糙度和封面间隙，使阵列和详情共享同一物理尺寸。
+ *
+ * @param surface 当前盒体表面的材质名称。
+ * @param material 需要配置的 Three.js 材质。
+ */
 export function configureMusicGlass(
   surface: string,
   material: THREE.MeshPhysicalMaterial,
@@ -126,13 +85,9 @@ export function configureMusicGlass(
   material.attenuationDistance = 4.5;
   material.clearcoat = surface === "Ivory_Edges" ? 0.16 : 0.08;
   material.clearcoatRoughness = surface === "Ivory_Edges" ? 0.2 : 0.38;
-  material.transparent = false;
-  material.opacity = 1;
-  // Keep V0.4.0's single-sided transmission path while tuning the finish.
   material.side = THREE.FrontSide;
   const finish = MUSIC_GLASS_FINISH[surface];
-  if (finish) Object.assign(material, finish.baseline);
-  material.userData.musicShell = true;
+  if (finish) Object.assign(material, finish);
   const compile = material.onBeforeCompile;
   material.onBeforeCompile = (shader, renderer) => {
     compile.call(material, shader, renderer);
@@ -142,12 +97,12 @@ export function configureMusicGlass(
 }
 
 /**
- * Three's transmission mip estimate assumes distant contents. Our paper is
- * only .025 units behind an .018-unit lid. Keep the small footprint over that
- * insert, but let the uncovered glass diffuse the distant shelf behind it.
- * Local coordinates keep the finish attached to both instances and extracted
- * cases. A soft shoulder outside the insert prevents a visible square seam.
- * No normal noise, extra texture/pass, or change to the paper sampling is needed.
+ * 向盒体玻璃 Shader 注入封面邻域处理。
+ *
+ * 通过纸张邻近度控制透射模糊，避免玻璃覆盖区域冲淡封面。
+ *
+ * @param shader 待注入 uniform 或片段的 Three.js Shader。
+ * @param surface 当前盒体表面的材质名称。
  */
 export function shadeMusicGlass(
   shader: THREE.WebGLProgramParametersWithUniforms,
@@ -183,50 +138,34 @@ export function shadeMusicGlass(
   );
 }
 
-/** Pale backgrounds need a little more body density and a readable matte rim. */
-export function setMusicGlassTheme(
-  surface: string,
-  material: THREE.MeshPhysicalMaterial,
-  day: boolean,
-  transition: ThemeTransition,
-) {
-  const finish = MUSIC_GLASS_FINISH[surface];
-  if (!material.userData.musicShell || !finish) return;
-  const target = day ? finish.day : finish.baseline;
-  for (const key of [
-    "transmission",
-    "thickness",
-    "roughness",
-    "attenuationDistance",
-  ] as const)
-    transition.number(material, key, target[key]);
-  // Night/dusk colors stay under the existing palette's theme control.
-  if (day) transition.color(material.color, finish.dayColor);
-}
-
-/** Clarity softens the lid while the separate translucent spine keeps its finish. */
+/**
+ * 按详情进度调整盒体玻璃清晰度。
+ *
+ * 只改变当前材质的光学参数，不修改共享模板。
+ *
+ * @param material 需要配置的 Three.js 材质。
+ * @param clarity 封面当前的清晰度目标。
+ */
 export function setMusicGlassClarity(
   material: THREE.MeshPhysicalMaterial,
   clarity: number,
-  warmth = 0,
 ) {
-  // Inspection softens the frosting slightly; it never becomes polished plastic.
-  // The paper remains an independent, stable opaque print inside the lid.
-  const daylight = THREE.MathUtils.clamp(warmth, 0, 1);
   material.roughness = THREE.MathUtils.lerp(
-    THREE.MathUtils.lerp(
-      MUSIC_GLASS_FINISH.Frosted_Polymer.baseline.roughness,
-      MUSIC_GLASS_FINISH.Frosted_Polymer.day.roughness,
-      daylight,
-    ),
-    THREE.MathUtils.lerp(0.27, 0.34, daylight),
+    MUSIC_GLASS_FINISH.Frosted_Polymer.roughness,
+    0.27,
     THREE.MathUtils.clamp(clarity, 0, 1),
   );
 }
 
+/**
+ * 创建与场景光照一致的封面印刷材质。
+ *
+ * 安装漫反射 Shader 扩展；调用方负责释放返回的材质。
+ *
+ * @param map 封面印刷使用的纹理。
+ * @returns 新建的封面材质。
+ */
 export function createAlbumPrintMaterial(map: THREE.Texture) {
-  // Matte ink receives the same diffuse lights and shadows as the archive.
-  // It has no specular lobe, glow or glass layer to bleach the printed colours.
   const material = new THREE.MeshLambertMaterial({
     map,
     alphaTest: 0.025,
@@ -236,8 +175,6 @@ export function createAlbumPrintMaterial(map: THREE.Texture) {
   material.onBeforeCompile = (shader) => {
     shader.fragmentShader = shader.fragmentShader.replace(
       "#include <opaque_fragment>",
-      // Keep strong key lighting within the print's original colour range.
-      // A zero/weak diffuse light still produces a zero/dim print, unlike Basic.
       "outgoingLight = min(outgoingLight, diffuseColor.rgb);\n#include <opaque_fragment>",
     );
   };

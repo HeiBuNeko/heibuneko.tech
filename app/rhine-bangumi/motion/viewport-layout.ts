@@ -1,11 +1,20 @@
-/** The scene and DOM must cross the portrait boundary together. */
 export const PORTRAIT_ASPECT = 1.05;
 
 export function isPortraitViewport(width: number, height: number) {
   return Math.max(1, width) / Math.max(1, height) < PORTRAIT_ASPECT;
 }
 
-/** Reference coordinates remain exact during the film and at 1920 × 1080. */
+/**
+ * 根据容器尺寸和指针类型选择舞台布局。
+ *
+ * 同步场景与 DOM 使用的横竖屏边界。
+ *
+ * @param width 视口或渲染区域的宽度。
+ * @param height 视口或渲染区域的高度。
+ * @param coarse 输入设备是否使用粗指针。
+ * @param cinematic 当前开场影片的渲染状态。
+ * @returns 布局类型及对应几何参数。
+ */
 export function viewportLayout(
   width: number,
   height: number,
@@ -36,7 +45,18 @@ export function viewportLayout(
   };
 }
 
-/** Preserve the long-lens perspective. Reframe only the camera, never the card. */
+/**
+ * 计算当前视口的档案镜头构图。
+ *
+ * 只调整相机视野和目标位置，不改变盒体几何体。
+ *
+ * @param width 视口或渲染区域的宽度。
+ * @param height 视口或渲染区域的高度。
+ * @param span 相机需要覆盖的可见高度。
+ * @param detail 详情展示的过渡进度。
+ * @param compact 是否采用紧凑布局。
+ * @returns 可用于镜头更新的构图参数。
+ */
 export function archiveFraming(
   width: number,
   height: number,
@@ -62,9 +82,7 @@ export function archiveFraming(
   return {
     span: viewSpan,
     portrait,
-    // Portrait selection is deliberately above its title and navigation.
     previewY: portrait ? 0.36 : 0.5,
-    detailX: portrait ? 0.5 : compact ? 0.27 : 550 / 1920,
     detailY: portrait ? 0.27 + 34 / height : compact ? 0.49 : 560 / 1080,
   };
 }

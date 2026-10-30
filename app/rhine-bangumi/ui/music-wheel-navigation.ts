@@ -1,4 +1,3 @@
-/** Keep wheel input in the current column and reuse the ordinary album motion. */
 export type MusicWheelInput = Pick<
   WheelEvent,
   "deltaMode" | "deltaX" | "deltaY" | "ctrlKey" | "shiftKey"
@@ -8,9 +7,16 @@ const PIXELS_PER_ALBUM = 48;
 const MAX_ALBUMS_PER_EVENT = 3;
 const GESTURE_GAP_MS = 200;
 
+/**
+ * 把不同滚轮设备的增量统一到导航单位。
+ *
+ * 按 deltaMode 和手势幅度换算，保留自然滚动方向。
+ *
+ * @param event 当前键盘、鼠标或滚轮事件。
+ * @param pageHeight 页面可滚动区域的高度。
+ * @returns 归一化后的滚动增量。
+ */
 export function musicWheelDelta(event: MusicWheelInput, pageHeight: number) {
-  // Read deltaMode before the deltas: some browsers adapt their units when
-  // callers inspect it. Pinch-to-zoom and horizontal gestures keep their owner.
   const unit =
     event.deltaMode === 1
       ? 16
@@ -28,6 +34,11 @@ export function musicWheelDelta(event: MusicWheelInput, pageHeight: number) {
   return event.deltaY * unit;
 }
 
+/**
+ * 累计滚轮输入并转换为离散选片步数。
+ *
+ * 按当前月份列维护手势上下文，防止残余滚动跨列触发。
+ */
 export class MusicWheelSteps {
   private remainder = 0;
   private direction = 0;
@@ -39,6 +50,15 @@ export class MusicWheelSteps {
     this.lastTime = -Infinity;
   }
 
+  /**
+   * 把累计滚动转换为离散选片步数。
+   *
+   * 在手势间隔或方向变化后重置余量，避免旧输入误触发。
+   *
+   * @param delta 本次滚轮事件的增量。
+   * @param now 当前滚轮事件时间戳，单位为毫秒。
+   * @returns 本次应导航的步数。
+   */
   consume(delta: number, now: number) {
     if (!Number.isFinite(delta) || !delta) return 0;
     const direction = Math.sign(delta);
@@ -51,8 +71,6 @@ export class MusicWheelSteps {
     }
     this.lastTime = now;
     this.direction = direction;
-    // Accumulate small trackpad deltas, while a single oversized wheel/page
-    // event can never jump dozens of albums or leave a delayed input backlog.
     this.remainder +=
       Math.min(Math.abs(delta), PIXELS_PER_ALBUM * MAX_ALBUMS_PER_EVENT) *
       direction;
@@ -65,7 +83,6 @@ export class MusicWheelSteps {
 type MusicWheelOptions = {
   enabled: () => boolean;
   navigate: (direction: number) => void;
-  /** A column identity, so a partial gesture cannot leak into another singer. */
   context?: () => string | number;
 };
 
@@ -83,11 +100,18 @@ const NATIVE_WHEEL_TARGETS = [
   "#music-detail",
 ].join(",");
 
+/**
+ * 判断目标元素是否需要原生滚动。
+ *
+ * 详情内容及可滚动控件优先使用浏览器自身滚动。
+ *
+ * @param target 当前动画或灯光的目标值。
+ * @param stage 接收滚轮事件的舞台元素。
+ * @returns 应保留原生滚轮行为时返回真。
+ */
 function keepsNativeWheel(target: EventTarget | null, stage: HTMLElement) {
   if (!(target instanceof Element)) return true;
   if (target.closest(NATIVE_WHEEL_TARGETS)) return true;
-  // Keep native scroll ownership even at a pane's top/bottom boundary. This
-  // also protects future scrollable content without a special class name.
   for (
     let element: Element | null = target;
     element && element !== stage;
@@ -101,6 +125,15 @@ function keepsNativeWheel(target: EventTarget | null, stage: HTMLElement) {
   return false;
 }
 
+/**
+ * 安装番剧滚轮导航。
+ *
+ * 仅在允许导航时消费滚动事件，卸载句柄负责解绑监听。
+ *
+ * @param stage 接收滚轮事件的舞台元素。
+ * @param options 场景或界面的初始化选项。
+ * @returns 滚轮监听的销毁句柄。
+ */
 export function mountMusicWheelNavigation(
   stage: HTMLElement,
   options: MusicWheelOptions,
@@ -108,6 +141,13 @@ export function mountMusicWheelNavigation(
   const steps = new MusicWheelSteps();
   let context: string | number | undefined;
   const reset = () => steps.reset();
+  /**
+   * 处理舞台上的滚轮输入。
+   *
+   * 仅在允许导航且目标不需原生滚动时消费事件。
+   *
+   * @param event 当前键盘、鼠标或滚轮事件。
+   */
   const onWheel = (event: WheelEvent) => {
     if (
       event.defaultPrevented ||
@@ -129,7 +169,6 @@ export function mountMusicWheelNavigation(
     const direction = steps.consume(delta, performance.now());
     if (direction) options.navigate(direction);
   };
-  // Bubble only: controls can retain wheel ownership with stopPropagation.
   stage.addEventListener("wheel", onWheel, { passive: false });
   stage.addEventListener("pointerdown", reset, { passive: true });
   stage.addEventListener("keydown", reset);

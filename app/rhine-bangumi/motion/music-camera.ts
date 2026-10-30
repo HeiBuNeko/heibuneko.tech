@@ -2,16 +2,13 @@ import * as THREE from "three";
 import { damp, type Spring, smooth } from "./motion";
 import { isPortraitViewport } from "./viewport-layout";
 
-/** Reserve headroom in every landscape view, with a little more on wide screens. */
 export function musicArchiveOffset(width: number, height: number) {
   if (isPortraitViewport(width, height)) return { x: 0, y: 0 };
   const aspect = Math.max(1, width) / Math.max(1, height);
   const wide = smooth((aspect - 16 / 9) / (21 / 9 - 16 / 9));
-  // Positive camera-right/up movement places the shelf left/down on screen.
   return { x: 0.035 * wide, y: 0.08 + 0.02 * wide };
 }
 
-/** Keep the selected corner continuous where the film changes to extraction. */
 export function musicExtractionAnchor(shot: number) {
   const extraction = smooth((shot - 27.3) / 1.25);
   return {
@@ -20,7 +17,16 @@ export function musicExtractionAnchor(shot: number) {
   };
 }
 
-/** Original-film seconds minus five. Hold the oblique inspection before squaring up. */
+/**
+ * 计算开场影片中的镜头姿态。
+ *
+ * 按开场时间插值镜头位置和注视点。
+ *
+ * @param shot 开场影片中的当前时间。
+ * @param arrayYaw 阵列当前的水平旋转角。
+ * @param arrayElevation 阵列当前的俯仰角。
+ * @returns 当前时间的镜头目标姿态。
+ */
 export function musicCinematicPose(
   shot: number,
   arrayYaw = 59,
@@ -57,7 +63,11 @@ export function musicArchiveTracksSettled(
   );
 }
 
-/** One entry/return progress drives lift, viewing angle and placement together. */
+/**
+ * 管理盒体从阵列到详情位置的共享进度。
+ *
+ * 预览、详情与归位使用同一过渡状态。
+ */
 export class MusicPlacementMotion {
   value = 0;
   velocity = 0;
@@ -71,6 +81,16 @@ export class MusicPlacementMotion {
     return this.elapsed >= this.duration;
   }
 
+  /**
+   * 推进盒体展示进度。
+   *
+   * 根据目标状态和时间步长更新弹簧，减少动态效果时直接到达终点。
+   *
+   * @param target 当前动画或灯光的目标值。
+   * @param dt 本次更新的时间步长，单位为秒。
+   * @param reduced 是否启用减少动态效果。
+   * @returns 当前展示进度。
+   */
   update(target: number, dt: number, reduced: boolean) {
     if (reduced) {
       this.target = this.value = target;
@@ -116,11 +136,22 @@ export class MusicPlacementMotion {
   }
 }
 
-/** Present in one movement; only a manually rotated box needs an alignment hold. */
+/**
+ * 管理档案、详情及归位之间的展示阶段。
+ *
+ * 记录详情是否就绪，并在手动旋转的盒体归位后放行阶段切换。
+ */
 export class MusicPresentation {
   phase: MusicPresentationPhase = "hidden";
   private settledFor = 0;
 
+  /**
+   * 请求切换盒体的展示阶段。
+   *
+   * 详情归位需要等待盒体位置和旋转完成，避免提前恢复阵列。
+   *
+   * @param mode 目标场景或过渡模式。
+   */
   request(mode: "hidden" | "archive" | "detail") {
     const previous = this.phase;
     if (mode === "hidden") this.phase = "hidden";
@@ -134,12 +165,13 @@ export class MusicPresentation {
     if (this.phase !== previous) this.settledFor = 0;
   }
 
+  /**
+   * 标记详情中的选片变化。
+   *
+   * 重置新盒体的就绪状态，保留正在进行的轨道运动。
+   */
   selectionChanged() {
-    // Browsing may keep accepting selections; only the readiness used to open
-    // the next album is invalidated. Never reset the moving tracks or speeds.
     if (this.phase === "placing" || this.phase === "presented") {
-      // Moving between albums keeps the inspection pose. Readiness must wait
-      // for the newly selected box and rail, without replaying placement.
       this.phase = "placing";
       this.settledFor = 0;
     } else if (this.phase === "archive" || this.phase === "returning-array") {
@@ -159,9 +191,14 @@ export class MusicPresentation {
     return this.phase === "placing" || this.phase === "presented";
   }
 
+  /**
+   * 在盒体转正后继续归位。
+   *
+   * 仅在归位阶段响应，避免旋转中的盒体与阵列相交。
+   *
+   * @param aligned 盒体是否已转回可进入阵列的朝向。
+   */
   returnWhenAligned(aligned: boolean) {
-    // Without manual rotation, all tracks reverse on the first return frame.
-    // A rotated box stays clear of its neighbors until it faces its slot again.
     if (this.phase === "returning-center" && aligned) {
       this.phase = "returning-array";
       this.settledFor = 0;
@@ -185,7 +222,11 @@ export class MusicPresentation {
   }
 }
 
-/** A camera dolly with continuous velocity; zoom describes visible height. */
+/**
+ * 保持镜头移动与视角变化连续。
+ *
+ * 记录相机当前位置和速度，在开场结束后衔接普通浏览。
+ */
 export class MusicCameraMotion {
   private positionVelocity = new THREE.Vector3();
   private aimVelocity = new THREE.Vector3();
@@ -201,9 +242,6 @@ export class MusicCameraMotion {
     dt: number,
     reduced: boolean,
   ) {
-    // Column browsing translates the shelf under a fixed camera heading.
-    // A speed-driven yaw would keep rotating back after the column has arrived.
-    // Retain only the existing vertical response for filled-array row browsing.
     const elevation =
       THREE.MathUtils.clamp(rowSpeed / 3, -1, 1) * 0.006 * (1 - detail);
     if (reduced) {
@@ -214,7 +252,15 @@ export class MusicCameraMotion {
     return this.elevation.value;
   }
 
-  /** Follow the authored opening directly, carrying its velocity into browsing. */
+  /**
+   * 从当前相机姿态同步镜头运动状态。
+   *
+   * 用于开场交接，避免普通浏览第一帧出现镜头跳变。
+   *
+   * @param camera 需要读取或更新姿态的相机。
+   * @param aim 相机当前注视点。
+   * @param dt 本次更新的时间步长，单位为秒。
+   */
   observe(camera: THREE.PerspectiveCamera, aim: THREE.Vector3, dt: number) {
     const span =
       2 *
@@ -232,6 +278,19 @@ export class MusicCameraMotion {
     this.remember(camera, aim);
   }
 
+  /**
+   * 更新浏览或详情的目标镜头。
+   *
+   * 按目标位置、注视点和可见高度推进相机，不随盒体局部抬升漂移。
+   *
+   * @param camera 需要读取或更新姿态的相机。
+   * @param aim 相机当前注视点。
+   * @param targetPosition 相机期望的位置。
+   * @param targetAim 相机期望的注视点。
+   * @param targetSpan 相机期望覆盖的可见高度。
+   * @param dt 本次更新的时间步长，单位为秒。
+   * @param reduced 是否启用减少动态效果。
+   */
   update(
     camera: THREE.PerspectiveCamera,
     aim: THREE.Vector3,
@@ -265,8 +324,6 @@ export class MusicCameraMotion {
       }
       damp(this.span, targetSpan, 9, dt);
     }
-    // Matching focal length to the rendered distance avoids a scale pulse when
-    // position and an independently damped angular FOV reach their goals apart.
     const distance = Math.max(1, camera.position.distanceTo(aim));
     camera.fov = THREE.MathUtils.radToDeg(
       2 * Math.atan(Math.max(0.1, this.span.value) / (2 * distance)),

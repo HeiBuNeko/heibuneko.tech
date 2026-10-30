@@ -1,17 +1,24 @@
-// Times are seconds from the reference video's 05:00 frame (25 fps).
 export const smooth = (t: number) => {
   t = Math.max(0, Math.min(1, t));
   return t * t * t * (10 + t * (-15 + 6 * t));
 };
 const bell = (x: number, width: number) => Math.exp(-0.5 * (x / width) ** 2);
+/**
+ * 计算档案阵列的空间波动。
+ *
+ * 将行、列与时间映射到同一连续波场，供多个盒体复用。
+ *
+ * @param row 目标单元在阵列中的行坐标。
+ * @param lane 目标月份列在阵列中的索引。
+ * @param time 当前动画时间，单位为秒。
+ * @returns 当前单元的波动位移。
+ */
 export function archiveWave(row: number, lane: number, time: number) {
   const t = time - 22;
   const phase = row + (lane - 2) * 0.65;
   const enter = smooth(t / 0.32);
   const first = 3 + t * 19;
   const returning = 32 - (t - 2.3) * 24;
-  // A crest has shoulders and a trailing trough: neighboring files describe
-  // one continuous surface, rather than independent staggered tweens.
   const packet = (distance: number) =>
     2.5 * bell(distance, 3.8) - 0.58 * bell(distance - 6, 3.5);
   return (
@@ -27,9 +34,6 @@ export function extraction(time: number) {
     0.4 * smooth((time - 25.58) / 0.82) + 2.95 * smooth((time - 27.55) / 1.3)
   );
 }
-// The returning scan leaves two moving shoulders around the selected file.
-// Their delay grows with distance, so the neighboring files keep moving during
-// the first extraction and settle before the second extraction.
 export function settlingWave(distance: number, time: number) {
   const age = time - 25.05 - Math.abs(distance) * 0.065;
   const envelope = Math.max(
@@ -51,9 +55,6 @@ export function baselineSelectionWave(distance: number, age: number) {
   );
 }
 
-// Music's taller 0.9 preview lift must not stack with the archive's fast crest.
-// Start with zero slope, retain a small signed settling wave, and propagate it
-// outwards without changing the archive/reference timeline.
 export function musicSelectionWave(distance: number, age: number) {
   if (age < 0 || age > 3.2) return 0;
   return (
@@ -65,8 +66,6 @@ export function musicSelectionWave(distance: number, age: number) {
   );
 }
 
-// The source stays still while the crest expands around it. Squaring the
-// positive cosine gives the ripple zero velocity at its leading/trailing edge.
 export function rippleEnvelope(distance: number, age: number) {
   return (
     smooth(distance / 2.5) * Math.max(0, Math.cos((distance - age * 8) * 0.58))
@@ -78,8 +77,6 @@ export function columnStrength(lane: number, focus: number, progress = 1) {
   return 1 + (selected - 1) * smooth(progress);
 }
 
-// A quiet idle drift, with neighboring cards slightly out of phase.
-// Maximum displacement is 0.102, under 3% of a card's height.
 export function idleWave(row: number, lane: number, time: number) {
   return (
     0.075 * Math.sin((time * Math.PI * 2) / 8 + row * 0.3 - lane * 0.45) +
@@ -106,8 +103,6 @@ export function cinematicField(
 
 export const INSPECTION_LIFT = 4.05;
 export const ALIGNMENT_EPSILON = 0.001;
-// Hold altitude while facing back into the slot. Descent begins only once
-// alignment is complete; this also applies to independently returning copies.
 export function returnStep(angle: number, dt: number, reduced = false) {
   const next = angle * Math.exp(-dt * (reduced ? 35 : 7));
   return Math.abs(next) <= ALIGNMENT_EPSILON ? 0 : next;

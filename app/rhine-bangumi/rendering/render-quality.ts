@@ -1,134 +1,25 @@
 import * as THREE from "three";
 import type { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 
-/** Rendering controls are independent of lighting, materials and animation. */
-export type RenderQuality = {
-  scale: number;
-  pixelRatio: number;
-  antialias: "off" | "smaa";
-  shadows: number;
-  aoSamples: number;
-  aoResolution: number;
-  depthOfField: number;
-  transmission: number;
-  anisotropy: number;
-};
+export const RENDER_QUALITY = {
+  pixelRatio: 1.5,
+  shadows: 2048,
+  anisotropy: 16,
+} as const;
 
-export const qualityPresets = {
-  performance: {
-    scale: 80,
-    pixelRatio: 1,
-    antialias: "off",
-    shadows: 1024,
-    aoSamples: 0,
-    aoResolution: 0.5,
-    depthOfField: 0,
-    transmission: 0.5,
-    anisotropy: 4,
-  },
-  original: {
-    scale: 100,
-    pixelRatio: 1.5,
-    antialias: "off",
-    shadows: 2048,
-    aoSamples: 32,
-    aoResolution: 1,
-    depthOfField: 100,
-    transmission: 1,
-    anisotropy: 16,
-  },
-  high: {
-    scale: 125,
-    pixelRatio: 2,
-    antialias: "smaa",
-    shadows: 4096,
-    aoSamples: 32,
-    aoResolution: 1,
-    depthOfField: 100,
-    transmission: 1,
-    anisotropy: 16,
-  },
-  ultra: {
-    scale: 150,
-    pixelRatio: 2,
-    antialias: "smaa",
-    shadows: 4096,
-    aoSamples: 64,
-    aoResolution: 1,
-    depthOfField: 100,
-    transmission: 1,
-    anisotropy: 16,
-  },
-} as const satisfies Record<string, RenderQuality>;
-export type QualityPreset = keyof typeof qualityPresets;
-export const presetLabels: Record<QualityPreset, string> = {
-  performance: "性能",
-  original: "原始",
-  high: "高",
-  ultra: "极高",
-};
-
-const member = <T>(value: unknown, choices: readonly T[], fallback: T): T =>
-  choices.includes(value as T) ? (value as T) : fallback;
-const range = (
-  value: unknown,
-  min: number,
-  max: number,
-  step: number,
-  fallback: number,
-) =>
-  typeof value === "number" && Number.isFinite(value)
-    ? Math.min(max, Math.max(min, Math.round(value / step) * step))
-    : fallback;
-
-export function normalizeQuality(
-  value: unknown,
-  legacyHigh = true,
-): RenderQuality {
-  const base = qualityPresets.original;
-  const v =
-    value && typeof value === "object"
-      ? (value as Record<string, unknown>)
-      : {};
-  // Older low quality retained full resolution, shadows and transmission.
-  const fallback = legacyHigh
-    ? base
-    : { ...base, pixelRatio: 1, aoSamples: 0, depthOfField: 0 };
-  return {
-    scale: range(v.scale, 50, 200, 5, fallback.scale),
-    pixelRatio: member(v.pixelRatio, [1, 1.5, 2, 3], fallback.pixelRatio),
-    antialias: member(
-      v.antialias,
-      ["off", "smaa"] as const,
-      fallback.antialias,
-    ),
-    shadows: member(v.shadows, [0, 1024, 2048, 4096], fallback.shadows),
-    aoSamples: member(v.aoSamples, [0, 16, 32, 64], fallback.aoSamples),
-    aoResolution: member(v.aoResolution, [0.5, 0.75, 1], fallback.aoResolution),
-    depthOfField: range(v.depthOfField, 0, 150, 5, fallback.depthOfField),
-    transmission: member(
-      v.transmission,
-      [0.25, 0.5, 0.75, 1],
-      fallback.transmission,
-    ),
-    anisotropy: member(v.anisotropy, [1, 2, 4, 8, 16], fallback.anisotropy),
-  };
-}
-
-export function matchingPreset(
-  quality: RenderQuality,
-): QualityPreset | "custom" {
-  return (
-    (Object.keys(qualityPresets) as QualityPreset[]).find((key) =>
-      Object.entries(qualityPresets[key]).every(
-        ([field, value]) => quality[field as keyof RenderQuality] === value,
-      ),
-    ) ?? "custom"
-  );
-}
-
+/**
+ * 计算满足设备与像素预算的渲染尺寸。
+ *
+ * 同时限制 DPR、最大纹理尺寸和全分辨率目标像素数。
+ *
+ * @param width 视口或渲染区域的宽度。
+ * @param height 视口或渲染区域的高度。
+ * @param stageScale 舞台在页面中的显示缩放比例。
+ * @param deviceRatio 设备像素比。
+ * @param maxTextureSize 设备支持的最大纹理尺寸。
+ * @returns 实际像素比与宽高。
+ */
 export function renderDimensions(
-  quality: RenderQuality,
   width: number,
   height: number,
   stageScale: number,
@@ -136,9 +27,7 @@ export function renderDimensions(
   maxTextureSize: number,
 ) {
   const requested =
-    (Math.min(deviceRatio, quality.pixelRatio) * stageScale * quality.scale) /
-    100;
-  // Bound all full-resolution postprocessing targets to 8.3 MP and device limits.
+    Math.min(deviceRatio, RENDER_QUALITY.pixelRatio) * stageScale;
   const ratio = Math.min(
     requested,
     Math.sqrt(8_294_400 / Math.max(1, width * height)),
@@ -148,17 +37,23 @@ export function renderDimensions(
     ratio,
     width: Math.max(1, Math.floor(width * ratio)),
     height: Math.max(1, Math.floor(height * ratio)),
-    limited: ratio < requested - 0.0001,
   };
 }
 
+/**
+ * 设置模型纹理的各向异性过滤。
+ *
+ * 遍历材质引用的纹理，同时尊重封面图集自己的过滤上限。
+ *
+ * @param root 当前场景或界面的根 DOM 元素。
+ * @param renderer 场景使用的 WebGL 渲染器。
+ */
 export function applyTextureQuality(
   root: THREE.Object3D,
   renderer: THREE.WebGLRenderer,
-  quality: RenderQuality,
 ) {
   const maximum = Math.min(
-    quality.anisotropy,
+    RENDER_QUALITY.anisotropy,
     renderer.capabilities.getMaxAnisotropy(),
   );
   const textures = new Set<THREE.Texture>();
@@ -174,8 +69,6 @@ export function applyTextureQuality(
     }
   });
   for (const texture of textures) {
-    // Atlas filtering must stay inside its own tile. Respect texture ownership
-    // instead of silently replacing the atlas's 1× guard with the global 16×.
     const limit = texture.userData.maxAnisotropy;
     const anisotropy =
       typeof limit === "number" && Number.isFinite(limit)
@@ -187,17 +80,26 @@ export function applyTextureQuality(
   }
 }
 
+/**
+ * 同步渲染器和后处理目标尺寸。
+ *
+ * 根据容器实际显示比例更新 DPR 与 Composer，避免缩放时尺寸不一致。
+ *
+ * @param renderer 场景使用的 WebGL 渲染器。
+ * @param composer 持有后处理通道的 Composer。
+ * @param host 后处理所对应的 DOM 容器。
+ * @param setDpr 更新 R3F 画布像素比的回调。
+ * @returns 最终渲染尺寸。
+ */
 export function resizeQuality(
   renderer: THREE.WebGLRenderer,
   composer: EffectComposer,
   host: HTMLElement,
-  quality: RenderQuality,
   setDpr: (ratio: number) => void,
 ) {
   const width = Math.max(1, host.clientWidth),
     height = Math.max(1, host.clientHeight);
   const dimensions = renderDimensions(
-    quality,
     width,
     height,
     host.getBoundingClientRect().width / width,
@@ -207,6 +109,5 @@ export function resizeQuality(
   setDpr(dimensions.ratio);
   composer.setPixelRatio(dimensions.ratio);
   composer.setSize(width, height);
-  renderer.transmissionResolutionScale = quality.transmission;
   return dimensions;
 }

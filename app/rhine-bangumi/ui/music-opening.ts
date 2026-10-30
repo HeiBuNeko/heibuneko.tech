@@ -9,8 +9,6 @@ const unit = (time: number, from: number, to: number) =>
   Math.max(0, Math.min(1, (time - from) / (to - from)));
 const smooth = (t: number) => t * t * (3 - 2 * t);
 
-/** A still, centered caption fades in and out before the live shelf takes over.
- * Both fades use the bounded film clock, including after a suspended tab. */
 export function musicOpeningFrame(time: number) {
   const t = Number.isFinite(time) ? Math.max(0, time) : 0;
   const phase: "slogan" | "array" =
@@ -24,11 +22,23 @@ export function musicOpeningFrame(time: number) {
   };
 }
 
+/**
+ * 管理开场静态标题的淡入和淡出。
+ *
+ * 将标题动画绑定到开场时间轴，避免后台恢复后突跳。
+ */
 export class MusicOpening {
   readonly root = document.createElement("div");
   private readonly paper: HTMLElement;
   private readonly caption: HTMLElement;
 
+  /**
+   * 创建开场标题的动画节点。
+   *
+   * 把静态标题接入开场时间轴，卸载时由控制器移除节点。
+   *
+   * @param parent 开场内容挂载的 DOM 容器。
+   */
   constructor(parent: HTMLElement) {
     this.root.className = "music-opening";
     this.root.setAttribute("aria-hidden", "true");

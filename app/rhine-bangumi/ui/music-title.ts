@@ -1,7 +1,6 @@
 import { escapeHtml } from "./html";
 import { createTitleReels, type TitleGlyph } from "./music-title-reels";
 
-/** Treat a trailing English translation as a subtitle, preserving the tagged title. */
 export function albumTitleParts(title: string) {
   const match = title.trim().match(/^(.+?)[（(]([^（）()]+)[）)]\s*$/u);
   if (
@@ -28,6 +27,15 @@ type Candidate = {
 };
 type TitleLayout = { size: number; height: number; glyphs: TitleGlyph[] };
 
+/**
+ * 比较两个标题排版是否等价。
+ *
+ * 逐项检查换行和字形位置，避免无变化时重建动画。
+ *
+ * @param a 第一个待比较对象或数值。
+ * @param b 第二个待比较对象或数值。
+ * @returns 排版结构是否相同。
+ */
 function sameLayout(a: TitleLayout | undefined, b: TitleLayout) {
   return (
     !!a &&
@@ -50,7 +58,15 @@ function sameLayout(a: TitleLayout | undefined, b: TitleLayout) {
   );
 }
 
-/** Native wrapping is measured in isolation; the visible glyph pool is write-only. */
+/**
+ * 测量并管理番剧标题的可见排版。
+ *
+ * 使用隔离测量层避免动画污染布局，并复用当前标题节点。
+ *
+ * @param root 当前场景或界面的根 DOM 元素。
+ * @returns 标题更新与销毁句柄。
+ * @throws 标题或布局依赖的 DOM 元素不存在时抛出异常。
+ */
 export function setupMusicTitleLayout(root: HTMLElement) {
   const required = (selector: string) => {
     const element = root.querySelector<HTMLElement>(selector);
@@ -68,8 +84,6 @@ export function setupMusicTitleLayout(root: HTMLElement) {
   visual.setAttribute("aria-hidden", "true");
   title.replaceChildren(spacer, visual);
   const reels = createTitleReels(visual, spacer);
-  // An h1 sibling shares every responsive title rule, but never inherits the
-  // fitted --album-title-size of the visible title or contributes to flex flow.
   const probe = document.createElement("h1");
   probe.className = "music-title-probe";
   probe.setAttribute("aria-hidden", "true");
@@ -95,6 +109,14 @@ export function setupMusicTitleLayout(root: HTMLElement) {
   let appliedViewport = "";
   let appliedLayout: TitleLayout | undefined;
 
+  /**
+   * 准备指定的标题候选节点。
+   *
+   * 复用已有 DOM 并只在缺失时创建测量节点。
+   *
+   * @param index 测量层中的候选槽位索引。
+   * @returns 可供测量的候选节点。
+   */
   const ensureCandidate = (index: number) => {
     let candidate = candidates[index];
     if (candidate) return candidate;
@@ -111,6 +133,15 @@ export function setupMusicTitleLayout(root: HTMLElement) {
     return candidate;
   };
 
+  /**
+   * 把候选标题布置到测量层。
+   *
+   * 设置候选尺寸与内容，供后续布局比较。
+   *
+   * @param index 测量层中的候选槽位索引。
+   * @param size 当前标题候选使用的字号。
+   * @returns 已更新内容和字号的候选节点。
+   */
   const stageCandidate = (index: number, size: number) => {
     const candidate = ensureCandidate(index);
     const parts = albumTitleParts(text);
@@ -132,6 +163,16 @@ export function setupMusicTitleLayout(root: HTMLElement) {
     candidate.main.getBoundingClientRect().height <=
       candidate.size * lineRatio * 2 + 1;
 
+  /**
+   * 读取标题候选在测量层中的真实布局。
+   *
+   * 记录每个字形的换行与位置，供后续标题切换动画使用。
+   *
+   * @param candidate 需要测量的标题候选布局。
+   * @param budget 当前标题候选可占用的垂直高度。
+   * @param overflow 是否允许候选标题超过正常行高边界。
+   * @returns 候选标题的排版快照。
+   */
   const snapshot = (
     candidate: Candidate,
     budget: number,
@@ -162,8 +203,6 @@ export function setupMusicTitleLayout(root: HTMLElement) {
       const range = document.createRange();
       const lines: TitleGlyph[][] = [];
       let firstTop: number | undefined;
-      // One read pass over native grapheme boxes; the reel renderer consumes
-      // these positions directly and never measures another glyph subtree.
       for (const segment of segments) {
         range.setStart(node, segment.index);
         range.setEnd(node, segment.index + segment.text.length);
@@ -191,8 +230,6 @@ export function setupMusicTitleLayout(root: HTMLElement) {
       const visible = overflow ? lines.slice(0, 2) : lines;
       if (kind === "translation") y += Number.parseFloat(style.marginTop) || 0;
       visible.forEach((row, line) => {
-        // A clamped tag retains native wrapping, replacing only the last face
-        // that would overflow with an ellipsis. The full name stays accessible.
         if (lines.length > visible.length && line === visible.length - 1) {
           canvas.font = font;
           const spacing = Number.parseFloat(style.letterSpacing) || 0;
@@ -227,6 +264,17 @@ export function setupMusicTitleLayout(root: HTMLElement) {
     return { size: candidate.size, height: Math.min(y, budget), glyphs };
   };
 
+  /**
+   * 测量标题候选在当前容器中的占用空间。
+   *
+   * 使用独立测量节点获得字形宽高，不读取正在动画的可见节点。
+   *
+   * @param width 视口或渲染区域的宽度。
+   * @param budget 当前标题候选可占用的垂直高度。
+   * @param base 测量标题布局的基准尺寸。
+   * @param lineRatio 候选布局允许的行高比例。
+   * @returns 候选排版的测量结果。
+   */
   const measure = (
     width: number,
     budget: number,
@@ -234,7 +282,6 @@ export function setupMusicTitleLayout(root: HTMLElement) {
     lineRatio: number,
   ) => {
     if (probe.style.width !== `${width}px`) probe.style.width = `${width}px`;
-    // Extra probes from a previous long tag stay dormant for ordinary titles.
     for (const candidate of candidates) candidate.root.style.display = "none";
     const first = stageCandidate(0, base);
     if (fits(first, budget, lineRatio)) return snapshot(first, budget, false);
@@ -242,8 +289,6 @@ export function setupMusicTitleLayout(root: HTMLElement) {
     const coarse = Array.from({ length: 8 }, (_, index) =>
       stageCandidate(index + 1, base - ((base - min) * (index + 1)) / 8),
     );
-    // Writes are complete before any fit read. These probes are in a contained
-    // layer, instead of resizing the live h1/entire character pool seven times.
     const fitIndex = coarse.findIndex((candidate) =>
       fits(candidate, budget, lineRatio),
     );
@@ -260,6 +305,11 @@ export function setupMusicTitleLayout(root: HTMLElement) {
     return snapshot(selected, budget, false);
   };
 
+  /**
+   * 根据容器尺寸排布标题字符。
+   *
+   * 比较候选换行并选择稳定布局，随后更新可见字符轨道。
+   */
   const layout = () => {
     scheduled = 0;
     if (destroyed) return;
@@ -331,16 +381,12 @@ export function setupMusicTitleLayout(root: HTMLElement) {
         if (oldest !== undefined) cache.delete(oldest);
       }
     }
-    // Metadata may finish wrapping one frame after selection. If its revised
-    // budget yields identical glyph geometry, keep the current reel animation.
     if (displayed === text && sameLayout(appliedLayout, result)) {
       appliedKey = key;
       appliedViewport = viewport;
       animateNext = false;
       return;
     }
-    // Resizes/font loads reposition existing text without replaying a title;
-    // actual selection changes keep the original per-character roll.
     const animated =
       enabled &&
       ((animateNext && displayed !== text) ||
@@ -375,7 +421,6 @@ export function setupMusicTitleLayout(root: HTMLElement) {
       enabled = animated;
       if (next === text) {
         if (!enabled) reels.finish();
-        // The browse surface may have been hidden since the last layout.
         schedule();
         return;
       }

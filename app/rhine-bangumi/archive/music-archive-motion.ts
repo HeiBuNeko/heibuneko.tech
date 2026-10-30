@@ -14,17 +14,15 @@ export type ArchiveTargets = Record<ArchiveTrack, number>;
 type Kinematics = Spring & { acceleration: number };
 type Polynomial = [number, number, number, number, number, number];
 
-/** Base seconds: one nearby move shares the detail's cadence; longer travel has room to breathe. */
 export function musicArchiveTravelDuration(lanes: number, rows: number) {
   const distance = Math.hypot(lanes, rows / 8);
   return 1.4 + Math.min(1, Math.max(0, (distance - 1) / 7));
 }
 
 /**
- * Programmatic archive travel uses one clock for all four tracks. A quintic
- * joins the displayed position, velocity and acceleration to a resting target,
- * including when a search is replaced or reversed before it finishes.
- * dt is already scaled by the scene's global motion speed, exactly once.
+ * 管理跨列和远距离选片的连续位移轨迹。
+ *
+ * 跟踪轨道目标及速度，使中途再次导航时不发生位置跳变。
  */
 export class MusicArchiveMotion {
   private states: Record<ArchiveTrack, Kinematics> = Object.fromEntries(
@@ -57,7 +55,6 @@ export class MusicArchiveMotion {
     ) as Record<ArchiveTrack, Kinematics>;
   }
 
-  /** Capture exact spring acceleration so a live browsing move can hand over without an impulse. */
   observe(
     tracks: ArchiveTracks,
     targets: ArchiveTargets,
@@ -76,9 +73,15 @@ export class MusicArchiveMotion {
     }
   }
 
+  /**
+   * 把当前轨道状态重新定向到新的选片目标。
+   *
+   * 保留已有位置和速度，计算各轴剩余的移动过程。
+   *
+   * @param tracks 当前各运动轴的位置与速度。
+   * @param targets 多个运动轴的目标状态。
+   */
   retarget(tracks: ArchiveTracks, targets: ArchiveTargets) {
-    // The supplied springs are the rendered state. Stored acceleration comes
-    // from either the preceding polynomial or the preceding spring sample.
     for (const key of ARCHIVE_TRACK_KEYS)
       Object.assign(this.states[key], tracks[key]);
     this.duration = musicArchiveTravelDuration(
@@ -115,6 +118,15 @@ export class MusicArchiveMotion {
     }
   }
 
+  /**
+   * 按时间步长推进阵列导航轨迹。
+   *
+   * 减少动态效果时直接收敛到目标，其余情况按轨迹更新各轴。
+   *
+   * @param tracks 当前各运动轴的位置与速度。
+   * @param dt 本次更新的时间步长，单位为秒。
+   * @param reduced 是否启用减少动态效果。
+   */
   update(tracks: ArchiveTracks, dt: number, reduced: boolean) {
     if (!this.running) return;
     this.elapsed = reduced
@@ -141,7 +153,6 @@ export class MusicArchiveMotion {
     this.running = this.elapsed < this.duration;
   }
 
-  /** Coordinate rebasing translates only positions; time and derivatives are unchanged. */
   translate(offset: ArchiveTargets) {
     for (const key of ARCHIVE_TRACK_KEYS) {
       this.states[key].value += offset[key];

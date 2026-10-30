@@ -1,17 +1,8 @@
 import { smooth } from "./motion";
 
-/**
- * Independent music-opening reconstruction from the ordered 001–120 images.
- * These are authored estimates, not a recovered source frame rate or a unique
- * 3D camera solution. Twenty-five samples per second maps that ordering to a
- * 4.76-second edit, followed by 0.44 seconds of live browsing motion.
- * The historical shot clock is retained only as an integration adapter.
- */
 export const MUSIC_INTRO_SHOT_START = 21.92;
 export const MUSIC_INTRO_SAMPLE_RATE = 25;
 export const MUSIC_INTRO_LAST_FRAME = 120;
-/** Reconstruction estimate: the same complete motion reaches each next lane
- * four authored samples later. Positive lanes are farther from the -X camera. */
 export const MUSIC_INTRO_LANE_DELAY = 4;
 
 const progress = (frame: number, start: number, end: number) =>
@@ -21,8 +12,6 @@ const lerp = (from: number, to: number, amount: number) =>
 const bell = (distance: number, width: number) =>
   Math.exp(-0.5 * (distance / width) ** 2);
 
-/** Continuous, one-based authored sample index; deliberately continues past
- * 120 so delayed lanes can use the same clock without per-lane clipping. */
 export function musicIntroFrame(shot: number) {
   return 1 + (shot - MUSIC_INTRO_SHOT_START) * MUSIC_INTRO_SAMPLE_RATE;
 }
@@ -42,6 +31,14 @@ function track(frame: number, keys: readonly Key[]) {
   return keys[keys.length - 1][1];
 }
 
+/**
+ * 计算开场影片的阵列与镜头关键姿态。
+ *
+ * 按作者设定的采样区间连接镜头、阵列和选中盒体的运动。
+ *
+ * @param shot 开场影片中的当前时间。
+ * @returns 指定时刻的开场姿态。
+ */
 export function musicIntroPose(shot: number) {
   const frame = musicIntroFrame(shot);
   return {
@@ -71,7 +68,6 @@ export function musicIntroPose(shot: number) {
       [44, -1.7],
       [112, -0.045],
     ]),
-    // A physical axial dolly: the shelf no longer needs a Z-entry translation.
     aimZ: track(frame, [
       [1, 22],
       [15, 2],
@@ -79,14 +75,20 @@ export function musicIntroPose(shot: number) {
       [76, 2],
       [112, 0.481],
     ]),
-    // Camera reframing is independent of the delayed per-lane surface blend.
     settle: progress(frame, 76, 112),
     lift: 0.9 * progress(frame, 89, MUSIC_INTRO_LAST_FRAME),
   };
 }
 
-/** Each lane shares the full rise/travel/return/settle trajectory. With the
- * nine-lane window (-4…4), the nearest lane joins the live idle field by sample 120. */
+/**
+ * 计算某列开场运动与浏览波场的交接比例。
+ *
+ * 列间延迟使用相同时间轴，确保接管时不出现高度跳变。
+ *
+ * @param relativeLane 相对选中列的横向距离。
+ * @param shot 开场影片中的当前时间。
+ * @returns 当前列的交接比例。
+ */
 export function musicIntroLaneSettle(relativeLane: number, shot: number) {
   return progress(localFrame(relativeLane, shot), 76, 104);
 }
@@ -100,6 +102,16 @@ function packets(frame: number) {
   };
 }
 
+/**
+ * 计算开场期间单元的延迟波场。
+ *
+ * 按实体列和行的位置延迟同一条波形，并在交接时与浏览波场衔接。
+ *
+ * @param relativeRow 相对选中行的纵向距离。
+ * @param relativeLane 相对选中列的横向距离。
+ * @param shot 开场影片中的当前时间。
+ * @returns 指定单元的位移值。
+ */
 export function musicIntroWave(
   relativeRow: number,
   relativeLane: number,
@@ -107,21 +119,23 @@ export function musicIntroWave(
 ) {
   const frame = localFrame(relativeLane, shot);
   const { forwardRow, forwardGain, returnRow, returnGain } = packets(frame);
-  // A broad crest and a modest trailing trough describe a single surface,
-  // rather than separately tweened albums. The return packet reverses travel.
   const forward =
     2.2 * bell(relativeRow - forwardRow, 5) -
     0.3 * bell(relativeRow - forwardRow + 7, 4.4);
   const returning =
     2.2 * bell(relativeRow - returnRow, 5) -
     0.3 * bell(relativeRow - returnRow - 7, 4.4);
-  // No global fade: the scene mixes this with its existing resting field using
-  // musicIntroLaneSettle, preserving the same temporal shift through handoff.
   return forward * forwardGain + returning * returnGain;
 }
 
-/** Row-light travel follows the central lane's crest, then returns to its
- * selected slot. This is an offset in rows, independent of the camera dolly. */
+/**
+ * 计算开场光带相对选中行的偏移。
+ *
+ * 让光带跟随开场波峰移动，并在末段返回选择位置。
+ *
+ * @param shot 开场影片中的当前时间。
+ * @returns 以阵列行数表示的偏移。
+ */
 export function musicIntroLightRow(shot: number) {
   const frame = musicIntroFrame(shot);
   const { forwardRow, returnRow } = packets(frame);

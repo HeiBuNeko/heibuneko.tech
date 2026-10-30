@@ -5,15 +5,12 @@ export type ArchiveNavigation =
   | {
       axis: "row" | "lane";
       direction: number;
-      /** Explicit physical depth for column browsing with position memory disabled. */
       row?: number;
     }
   | { cell: ArchiveCell; guided?: boolean };
 
 export const LOOP_COLUMNS = 9;
 export const LOOP_ROWS = 32;
-// Twenty additional shelf positions extend the previous 48-row music window
-// equally at both ends. The original archive and logical album rows stay fixed.
 export const MUSIC_LOOP_ROWS = 68;
 export const COLUMN_SPACING = 5.2;
 export const ROW_SPACING = 0.62;
@@ -24,8 +21,6 @@ export function wrap(value: number, count: number) {
   return ((value % count) + count) % count;
 }
 
-// Choose an occurrence of an item in an unbounded sequence. Directional moves
-// use adjacent cells instead, so the last-to-first transition never reverses.
 export function nearestOccurrence(
   value: number,
   center: number,
@@ -40,6 +35,16 @@ export function fileAtCell({ lane, row }: ArchiveCell) {
   return files[wrap(row - 12, files.length)] ?? -1;
 }
 
+/**
+ * 计算导航目标在循环阵列中的实体单元。
+ *
+ * 根据当前单元与导航方向选择最近的循环副本，保持列和行移动连续。
+ *
+ * @param index 目标番剧在档案中的索引。
+ * @param current 当前选中的阵列单元。
+ * @param navigation 本次选片的导航上下文。
+ * @returns 目标阵列单元。
+ */
 export function selectionCell(
   index: number,
   current: ArchiveCell,
@@ -70,8 +75,6 @@ export function selectionCell(
   };
 }
 
-// Default to the original 32-row reference. Larger display pools extend both
-// ends without changing logical archive rows or the array's 15.5-row center.
 export function poolCell(index: number, rows = LOOP_ROWS): ArchiveCell {
   return {
     lane: POOL_LANES[Math.floor(index / rows)],

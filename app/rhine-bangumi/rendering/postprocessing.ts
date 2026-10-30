@@ -3,23 +3,34 @@ import { BokehPass } from "three/addons/postprocessing/BokehPass.js";
 import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
-import { SMAAPass } from "three/addons/postprocessing/SMAAPass.js";
 import { SSAOPass } from "three/addons/postprocessing/SSAOPass.js";
-import { type RenderQuality, resizeQuality } from "./render-quality";
+import { resizeQuality } from "./render-quality";
 
+/**
+ * 创建场景后处理管线。
+ *
+ * 持有 AO、景深和输出通道，并提供尺寸更新、渲染及释放方法。
+ *
+ * @param renderer 场景使用的 WebGL 渲染器。
+ * @param scene 需要绘制或配置的 Three.js 场景。
+ * @param camera 需要读取或更新姿态的相机。
+ * @param width 视口或渲染区域的宽度。
+ * @param height 视口或渲染区域的高度。
+ * @param setDpr 更新 R3F 画布像素比的回调。
+ * @returns 后处理控制句柄；调用方负责调用 dispose。
+ */
 export function createPostprocessing(
   renderer: THREE.WebGLRenderer,
   scene: THREE.Scene,
   camera: THREE.PerspectiveCamera,
   width: number,
   height: number,
-  refined: boolean,
   setDpr: (ratio: number) => void,
 ) {
   const composer = new EffectComposer(renderer);
   composer.addPass(new RenderPass(scene, camera));
-  let ao = new SSAOPass(scene, camera, width, height);
-  ao.kernelRadius = refined ? 0.44 : 0.38;
+  const ao = new SSAOPass(scene, camera, width, height);
+  ao.kernelRadius = 0.38;
   ao.minDistance = 0.001;
   ao.maxDistance = 0.09;
   composer.addPass(ao);
@@ -29,16 +40,11 @@ export function createPostprocessing(
     maxblur: 0.011,
   });
   composer.addPass(bokeh);
-  const smaa = new SMAAPass();
-  smaa.enabled = false;
-  composer.addPass(smaa);
   composer.addPass(new OutputPass());
-  let aoKernelSize = 32;
 
   const softenContactShadows = () => {
     ao.kernelRadius = 0.18;
     ao.maxDistance = 0.035;
-    // Thin transmitting cases need a soft contact cue, not opaque black AO.
     ao.copyMaterial.fragmentShader = ao.copyMaterial.fragmentShader.replace(
       "gl_FragColor = opacity * texel;",
       "gl_FragColor = vec4(mix(vec3(1.0), texel.rgb, 0.22), texel.a);",
@@ -48,42 +54,14 @@ export function createPostprocessing(
 
   return {
     softenContactShadows,
-    setQuality(quality: RenderQuality, soften: boolean) {
-      if (quality.aoSamples && quality.aoSamples !== aoKernelSize) {
-        const old = ao;
-        ao = new SSAOPass(scene, camera, 1, 1, quality.aoSamples);
-        ao.kernelRadius = old.kernelRadius;
-        ao.minDistance = old.minDistance;
-        ao.maxDistance = old.maxDistance;
-        const index = composer.passes.indexOf(old);
-        composer.removePass(old);
-        composer.insertPass(ao, index);
-        old.dispose();
-        aoKernelSize = quality.aoSamples;
-        if (soften) softenContactShadows();
-      }
-      ao.enabled = quality.aoSamples > 0;
-      bokeh.enabled = quality.depthOfField > 0;
-      smaa.enabled = quality.antialias === "smaa";
+    resize(host: HTMLElement) {
+      const dimensions = resizeQuality(renderer, composer, host, setDpr);
+      ao.setSize(dimensions.width, dimensions.height);
     },
-    resize(host: HTMLElement, quality: RenderQuality) {
-      const dimensions = resizeQuality(
-        renderer,
-        composer,
-        host,
-        quality,
-        setDpr,
-      );
-      ao.setSize(
-        Math.max(1, Math.floor(dimensions.width * quality.aoResolution)),
-        Math.max(1, Math.floor(dimensions.height * quality.aoResolution)),
-      );
-    },
-    setFocus(depth: number, detail: number, depthOfField: number) {
+    setFocus(depth: number, detail: number) {
       const uniforms = bokeh.uniforms as Record<string, { value: number }>;
       uniforms.focus.value = depth;
-      uniforms.aperture.value =
-        (THREE.MathUtils.lerp(0.0003, 0.0008, detail) * depthOfField) / 100;
+      uniforms.aperture.value = THREE.MathUtils.lerp(0.0003, 0.0008, detail);
     },
     render() {
       composer.render();

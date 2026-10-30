@@ -1,4 +1,3 @@
-/** Archive fields are plain text, including inside HTML attributes. */
 export function escapeHtml(value: string) {
   return value.replace(/[&<>"']/g, (character) => {
     switch (character) {

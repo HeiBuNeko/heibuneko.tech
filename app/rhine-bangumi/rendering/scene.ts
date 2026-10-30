@@ -3,25 +3,25 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import {
   type ArchiveCell,
   type ArchiveNavigation,
+  BANGUMI_LOOP_ROWS,
   cellKey,
   fileAtCell,
   LOOP_COLUMNS,
-  MUSIC_LOOP_ROWS,
   poolCell,
   ROW_SPACING,
   sameCell,
   selectionCell,
   visibleCell,
 } from "../archive/archive-loop";
-import { CoverAtlas } from "../archive/cover-atlas";
-import { MusicArchiveMotion } from "../archive/music-archive-motion";
+import { BangumiArchiveMotion } from "../archive/bangumi-archive-motion";
 import {
-  MUSIC_OVERVIEW_PICK_EXTENT,
-  MusicOverviewMotion,
-  musicOverviewColumnExtent,
+  BANGUMI_OVERVIEW_PICK_EXTENT,
+  BangumiOverviewMotion,
+  bangumiOverviewColumnExtent,
   type OverviewColumn,
   overviewFraming,
-} from "../archive/music-overview";
+} from "../archive/bangumi-overview";
+import { CoverAtlas } from "../archive/cover-atlas";
 import {
   archiveColumns,
   columnFiles,
@@ -29,62 +29,62 @@ import {
   fileLocation,
   records,
 } from "../data/data";
+import {
+  BangumiCameraMotion,
+  BangumiPlacementMotion,
+  BangumiPresentation,
+  bangumiArchiveOffset,
+  bangumiArchiveTracksSettled,
+  bangumiCinematicPose,
+  bangumiExtractionAnchor,
+} from "../motion/bangumi-camera";
+import {
+  bangumiIntroLaneSettle,
+  bangumiIntroPose,
+  bangumiIntroWave,
+} from "../motion/bangumi-intro-motion";
+import { getBangumiMotionSpeed } from "../motion/bangumi-motion";
 import { DecryptionController } from "../motion/decryption";
 import {
   archiveWave,
+  bangumiSelectionWave,
   cinematicField,
   columnStrength,
   damp,
   extraction,
   idleWave,
-  musicSelectionWave,
   returnStep,
   settlingWave,
   smooth,
 } from "../motion/motion";
-import {
-  MusicCameraMotion,
-  MusicPlacementMotion,
-  MusicPresentation,
-  musicArchiveOffset,
-  musicArchiveTracksSettled,
-  musicCinematicPose,
-  musicExtractionAnchor,
-} from "../motion/music-camera";
-import {
-  musicIntroLaneSettle,
-  musicIntroPose,
-  musicIntroWave,
-} from "../motion/music-intro-motion";
-import { getMusicMotionSpeed } from "../motion/music-motion";
 import { archiveFraming, swipeDirection } from "../motion/viewport-layout";
 import { CardAppearance } from "./appearance";
 import { createArchiveEnvironment } from "./archive-lighting";
 import { assetUrl as publicAsset } from "./asset-url";
-import { configureInternalOptics } from "./internal-optics";
-import { musicFogDistances } from "./music-atmosphere";
-import { MUSIC_CD_ASSET } from "./music-cd-asset";
-import { MusicSelectionLighting } from "./music-lighting";
+import { bangumiFogDistances } from "./bangumi-atmosphere";
+import { BANGUMI_CASE_ASSET } from "./bangumi-case-asset";
+import { BangumiSelectionLighting } from "./bangumi-lighting";
 import {
-  configureMusicGlass,
-  MUSIC_COLUMN_SPACING,
-  MUSIC_MODEL,
-  normalizeMusicGeometry,
-} from "./music-model";
+  BANGUMI_COLUMN_SPACING,
+  BANGUMI_MODEL,
+  configureBangumiGlass,
+  normalizeBangumiGeometry,
+} from "./bangumi-model";
+import { configureInternalOptics } from "./internal-optics";
 import { createPostprocessing } from "./postprocessing";
 import { applyTextureQuality, RENDER_QUALITY } from "./render-quality";
 
-export const MUSIC_PREVIEW_LIFT = 0.9;
-export const MUSIC_INSPECTION_LIFT = MUSIC_MODEL.height + 0.12;
-const MUSIC_DETAIL_ELEVATION = THREE.MathUtils.degToRad(20);
-const MUSIC_ALBUM_SWITCH_RATE = 9;
+export const BANGUMI_PREVIEW_LIFT = 0.9;
+export const BANGUMI_INSPECTION_LIFT = BANGUMI_MODEL.height + 0.12;
+const BANGUMI_DETAIL_ELEVATION = THREE.MathUtils.degToRad(20);
+const BANGUMI_ALBUM_SWITCH_RATE = 9;
 /**
  * 协调番剧阵列、镜头、封面与后处理的生命周期。
  *
  * R3F 持有渲染器和帧循环；本类管理手动创建的图集、材质副本、环境贴图和后处理资源。
  */
 export class ArchiveScene {
-  private readonly columnSpacing = MUSIC_COLUMN_SPACING;
+  private readonly columnSpacing = BANGUMI_COLUMN_SPACING;
   readonly renderer: THREE.WebGLRenderer;
   readonly scene: THREE.Scene;
   readonly content: THREE.Group;
@@ -99,7 +99,7 @@ export class ArchiveScene {
   private dummy = new THREE.Object3D();
   private columnExtentOffset = new THREE.Vector3();
   private positions: THREE.Vector3[] = [];
-  private poolRows = MUSIC_LOOP_ROWS;
+  private poolRows = BANGUMI_LOOP_ROWS;
   private cells: ArchiveCell[] = [];
   private selectedCell: ArchiveCell = { lane: 2, row: 12 };
   private looping = false;
@@ -118,13 +118,13 @@ export class ArchiveScene {
   private scanTime = 29.1;
   private scanBlend = 0;
   private cameraAim = new THREE.Vector3();
-  private musicCamera = new MusicCameraMotion();
-  private musicOverview = new MusicOverviewMotion();
-  private musicOverviewCopies = new Map<number, number>();
-  private musicPresentation = new MusicPresentation();
-  private musicPlacement = new MusicPlacementMotion();
-  private musicArchiveMotion = new MusicArchiveMotion();
-  private musicNavigationLift = false;
+  private bangumiCamera = new BangumiCameraMotion();
+  private bangumiOverview = new BangumiOverviewMotion();
+  private bangumiOverviewCopies = new Map<number, number>();
+  private bangumiPresentation = new BangumiPresentation();
+  private bangumiPlacement = new BangumiPlacementMotion();
+  private bangumiArchiveMotion = new BangumiArchiveMotion();
+  private bangumiNavigationLift = false;
   private outgoing: {
     group: THREE.Group;
     slot: number;
@@ -149,7 +149,7 @@ export class ArchiveScene {
   private floor: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshStandardMaterial>;
   private stars?: THREE.Points<THREE.BufferGeometry, THREE.PointsMaterial>;
   private covers?: CoverAtlas;
-  private selectionLighting?: MusicSelectionLighting;
+  private selectionLighting?: BangumiSelectionLighting;
   private clock = 0;
   private loaded = false;
   private reduced = false;
@@ -241,7 +241,7 @@ export class ArchiveScene {
    * @param selectedIndex 初始选中的番剧索引。
    * @throws 模型请求或解析失败时传播加载异常。
    */
-  async load(assetUrl = publicAsset(MUSIC_CD_ASSET), selectedIndex = 0) {
+  async load(assetUrl = publicAsset(BANGUMI_CASE_ASSET), selectedIndex = 0) {
     const gltf = await new GLTFLoader().loadAsync(assetUrl);
     if (this.disposed) return;
     gltf.scene.updateMatrixWorld(true);
@@ -257,7 +257,7 @@ export class ArchiveScene {
     }
     for (const mesh of meshes) {
       const geom = mesh.geometry.clone().applyMatrix4(mesh.matrixWorld);
-      normalizeMusicGeometry(geom);
+      normalizeBangumiGeometry(geom);
       const source = mesh.material as THREE.MeshStandardMaterial;
       const name = source.name.replace(/\.\d+$/, "");
       const mat = new THREE.MeshPhysicalMaterial({
@@ -301,7 +301,7 @@ export class ArchiveScene {
         mat.roughness = 0.26;
         mat.metalness = 0.08;
       }
-      configureMusicGlass(name, mat);
+      configureBangumiGlass(name, mat);
       configureInternalOptics(name, mat);
       if (name === "Carbon_Ink") continue;
       const selectedMesh = new THREE.Mesh(geom, mat);
@@ -339,13 +339,13 @@ export class ArchiveScene {
         arrayMat.color.set("#e4d6c5");
         arrayMat.metalness = 0.05;
       }
-      configureMusicGlass(name, arrayMat);
+      configureBangumiGlass(name, arrayMat);
       const baseCompile = arrayMat.onBeforeCompile;
       arrayMat.onBeforeCompile = (shader, renderer) => {
         baseCompile.call(arrayMat, shader, renderer);
         this.selectionLighting?.shade(shader, name);
       };
-      arrayMat.customProgramCacheKey = () => `music-guided-glass-${name}`;
+      arrayMat.customProgramCacheKey = () => `bangumi-guided-glass-${name}`;
       this.appearance.register(name, mat, arrayMat);
       const inst = new THREE.InstancedMesh(geom, arrayMat, count);
       inst.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
@@ -381,13 +381,13 @@ export class ArchiveScene {
    * @param selectedIndex 初始选中的番剧索引。
    */
   private async initializeLibrary(selectedIndex: number) {
-    this.musicOverviewCopies.clear();
+    this.bangumiOverviewCopies.clear();
     if (!this.loaded || !this.covers) return;
-    this.musicPresentation.request("hidden");
-    this.musicCamera = new MusicCameraMotion();
-    this.musicPlacement = new MusicPlacementMotion();
-    this.musicArchiveMotion = new MusicArchiveMotion();
-    this.musicNavigationLift = false;
+    this.bangumiPresentation.request("hidden");
+    this.bangumiCamera = new BangumiCameraMotion();
+    this.bangumiPlacement = new BangumiPlacementMotion();
+    this.bangumiArchiveMotion = new BangumiArchiveMotion();
+    this.bangumiNavigationLift = false;
     this.targetDetail = this.detail = 0;
     for (const old of this.outgoing) {
       this.content.remove(old.group);
@@ -423,16 +423,16 @@ export class ArchiveScene {
   }
 
   enableSelectionLighting() {
-    this.selectionLighting ??= new MusicSelectionLighting(
+    this.selectionLighting ??= new BangumiSelectionLighting(
       this.scene,
       this.content,
     );
-    this.appearance.musicLighting = this.selectionLighting;
-    this.softenMusicContactShadows();
+    this.appearance.bangumiLighting = this.selectionLighting;
+    this.softenBangumiContactShadows();
     this.applyNightTheme();
   }
 
-  private softenMusicContactShadows() {
+  private softenBangumiContactShadows() {
     this.light.shadow.intensity = 0.32;
     this.pipeline.softenContactShadows();
   }
@@ -472,14 +472,14 @@ export class ArchiveScene {
    * @param mode 目标场景或过渡模式。
    */
   setMode(mode: "hidden" | "archive" | "detail") {
-    if (mode !== "archive") this.musicOverview.active = false;
-    if (mode === "hidden") this.musicOverview.reset();
-    this.musicPresentation.request(mode);
+    if (mode !== "archive") this.bangumiOverview.active = false;
+    if (mode === "hidden") this.bangumiOverview.reset();
+    this.bangumiPresentation.request(mode);
     if (mode === "hidden") {
-      this.musicCamera = new MusicCameraMotion();
-      this.musicPlacement = new MusicPlacementMotion();
-      this.musicArchiveMotion = new MusicArchiveMotion();
-      this.musicNavigationLift = false;
+      this.bangumiCamera = new BangumiCameraMotion();
+      this.bangumiPlacement = new BangumiPlacementMotion();
+      this.bangumiArchiveMotion = new BangumiArchiveMotion();
+      this.bangumiNavigationLift = false;
     }
     if (mode === "detail")
       this.decryption.enter(
@@ -500,7 +500,7 @@ export class ArchiveScene {
     }
     this.lastInteraction = this.clock;
     this.targetReveal = mode === "hidden" ? 0 : 1;
-    this.targetDetail = Number(this.musicPresentation.holdsDetail);
+    this.targetDetail = Number(this.bangumiPresentation.holdsDetail);
     this.dragging = false;
     if (mode !== "detail") {
       this.targetRotation = 0;
@@ -510,21 +510,21 @@ export class ArchiveScene {
   setReduced(value: boolean) {
     this.reduced = value;
   }
-  setMusicOverview(active: boolean) {
-    this.musicOverview.active = active;
+  setBangumiOverview(active: boolean) {
+    this.bangumiOverview.active = active;
     this.pointer.set(0, 0);
   }
-  private musicColumnExtent(lane: number) {
+  private bangumiColumnExtent(lane: number) {
     return !this.looping
       ? 1
-      : musicOverviewColumnExtent(
+      : bangumiOverviewColumnExtent(
           lane,
           this.columnCamera.value / this.columnSpacing + 2,
-          this.musicOverview.value,
+          this.bangumiOverview.value,
         );
   }
   private pickableCell(cell: ArchiveCell) {
-    return this.musicColumnExtent(cell.lane) >= MUSIC_OVERVIEW_PICK_EXTENT;
+    return this.bangumiColumnExtent(cell.lane) >= BANGUMI_OVERVIEW_PICK_EXTENT;
   }
   /**
    * 把总览边缘列的展开比例应用到盒体。
@@ -534,22 +534,22 @@ export class ArchiveScene {
    * @param object 需要调整列高的 Three.js 对象。
    * @param extent 总览中当前列的高度比例。
    */
-  private applyMusicColumnExtent(object: THREE.Object3D, extent: number) {
+  private applyBangumiColumnExtent(object: THREE.Object3D, extent: number) {
     if (extent <= 0) {
       object.scale.setScalar(0);
       return;
     }
     object.scale.set(1, extent, 1);
     if (extent === 1) return;
-    const bottom = MUSIC_MODEL.center.y - MUSIC_MODEL.height / 2;
+    const bottom = BANGUMI_MODEL.center.y - BANGUMI_MODEL.height / 2;
     object.position.add(
       this.columnExtentOffset
         .set(0, bottom * (1 - extent), 0)
         .applyQuaternion(object.quaternion),
     );
   }
-  get musicOverviewProgress() {
-    return this.musicOverview.value;
+  get bangumiOverviewProgress() {
+    return this.bangumiOverview.value;
   }
   /**
    * 投影可见月份列供总览名牌使用。
@@ -559,10 +559,10 @@ export class ArchiveScene {
    */
   getOverviewColumns(): OverviewColumn[] {
     if (!this.loaded || !archiveColumns.length) {
-      this.musicOverviewCopies.clear();
+      this.bangumiOverviewCopies.clear();
       return [];
     }
-    const copies = this.musicOverviewCopies;
+    const copies = this.bangumiOverviewCopies;
     const width = this.container.clientWidth,
       height = this.container.clientHeight;
     const centerLane = this.columnCamera.value / this.columnSpacing + 2;
@@ -586,13 +586,13 @@ export class ArchiveScene {
       if (Math.abs(physical - centerLane) > 4.5) return [];
       const count = columnFiles(lane).length;
       if (!count) return [];
-      const extent = this.musicColumnExtent(physical);
+      const extent = this.bangumiColumnExtent(physical);
       const point = new THREE.Vector3(
         (physical - 2) * this.columnSpacing - this.columnCamera.value,
         -4.6 +
-          MUSIC_MODEL.center.y -
-          MUSIC_MODEL.height / 2 +
-          (MUSIC_MODEL.height + 0.65) * extent,
+          BANGUMI_MODEL.center.y -
+          BANGUMI_MODEL.height / 2 +
+          (BANGUMI_MODEL.height + 0.65) * extent,
         -2.17,
       ).project(this.camera);
       if (point.z < -1 || point.z > 1) return [];
@@ -617,9 +617,9 @@ export class ArchiveScene {
    *
    * @param nowSeconds 当前时间，单位为秒。
    */
-  finishMusicIntro(nowSeconds: number) {
+  finishBangumiIntro(nowSeconds: number) {
     if (!this.loaded) return;
-    this.musicNavigationLift = false;
+    this.bangumiNavigationLift = false;
     this.clock = this.last = nowSeconds;
     this.setMode("archive");
     this.lastInteraction = -Infinity;
@@ -632,9 +632,9 @@ export class ArchiveScene {
     this.scanBlend = 0;
     this.pulses = [];
     this.pointer.set(0, 0);
-    this.musicCamera = new MusicCameraMotion();
-    this.musicCamera.observe(this.camera, this.cameraAim, 0);
-    this.musicPresentation.update(0, true, true, true);
+    this.bangumiCamera = new BangumiCameraMotion();
+    this.bangumiCamera.observe(this.camera, this.cameraAim, 0);
+    this.bangumiPresentation.update(0, true, true, true);
   }
   /**
    * 跳过开场并建立浏览初始姿态。
@@ -643,13 +643,13 @@ export class ArchiveScene {
    *
    * @param nowSeconds 当前时间，单位为秒。
    */
-  showMusicArchiveImmediately(nowSeconds: number) {
+  showBangumiArchiveImmediately(nowSeconds: number) {
     if (!this.loaded) return;
-    this.musicPresentation = new MusicPresentation();
-    this.musicCamera = new MusicCameraMotion();
-    this.musicPlacement = new MusicPlacementMotion();
-    this.musicArchiveMotion = new MusicArchiveMotion();
-    this.musicNavigationLift = false;
+    this.bangumiPresentation = new BangumiPresentation();
+    this.bangumiCamera = new BangumiCameraMotion();
+    this.bangumiPlacement = new BangumiPlacementMotion();
+    this.bangumiArchiveMotion = new BangumiArchiveMotion();
+    this.bangumiNavigationLift = false;
     this.clock = this.last = this.lastInteraction = nowSeconds;
     this.setMode("archive");
     this.lastInteraction = -Infinity;
@@ -659,7 +659,7 @@ export class ArchiveScene {
     this.returnY = null;
     this.dragging = this.canInspect = false;
     this.pointer.set(0, 0);
-    this.lift = { value: MUSIC_PREVIEW_LIFT, velocity: 0 };
+    this.lift = { value: BANGUMI_PREVIEW_LIFT, velocity: 0 };
     const chosen = this.cellPosition(this.selectedCell);
     this.rail = { value: -2.17 - chosen.z, velocity: 0 };
     this.columnCamera = { value: chosen.x, velocity: 0 };
@@ -742,11 +742,11 @@ export class ArchiveScene {
     this.shoulder.value -= shift.row;
     this.columnCamera.value -= shift.lane * this.columnSpacing;
     if (shift.lane) {
-      for (const [lane, physical] of this.musicOverviewCopies)
-        this.musicOverviewCopies.set(lane, physical - shift.lane);
+      for (const [lane, physical] of this.bangumiOverviewCopies)
+        this.bangumiOverviewCopies.set(lane, physical - shift.lane);
     }
     this.rail.value += shift.row * ROW_SPACING;
-    this.musicArchiveMotion.translate({
+    this.bangumiArchiveMotion.translate({
       column: -shift.lane * this.columnSpacing,
       rail: shift.row * ROW_SPACING,
       lane: -shift.lane,
@@ -761,10 +761,10 @@ export class ArchiveScene {
       pulse.row -= shift.row;
     }
   }
-  switchMusicAlbum(index: number, navigation?: ArchiveNavigation) {
-    if (!this.loaded || !records[index] || !this.musicPresentation.placed)
+  switchBangumiAlbum(index: number, navigation?: ArchiveNavigation) {
+    if (!this.loaded || !records[index] || !this.bangumiPresentation.placed)
       return;
-    this.musicNavigationLift = true;
+    this.bangumiNavigationLift = true;
     this.dragging = this.canInspect = false;
     this.select(index, navigation);
     this.decryption.enter(this.decryption.clarity > 0.999);
@@ -779,7 +779,7 @@ export class ArchiveScene {
    */
   select(index: number, navigation?: ArchiveNavigation) {
     if (!records[index]) return;
-    if (!this.musicPresentation.placed) this.musicNavigationLift = false;
+    if (!this.bangumiPresentation.placed) this.bangumiNavigationLift = false;
     this.lastInteraction = this.clock;
     const next = fileLocation(index).slot;
     const canonical = fileLocation(index);
@@ -790,7 +790,7 @@ export class ArchiveScene {
       cell.lane !== this.selectedCell.lane &&
       Math.abs(cell.row - this.selectedCell.row) > 1;
     const changed = !sameCell(cell, this.selectedCell);
-    if (changed) this.musicPresentation.selectionChanged();
+    if (changed) this.bangumiPresentation.selectionChanged();
     if (this.looping && changed && this.loaded && this.lift.value > 0.0001) {
       const group = this.model.clone(true);
       this.appearance.prepare(group);
@@ -817,14 +817,14 @@ export class ArchiveScene {
     if (
       changed &&
       this.loaded &&
-      !this.musicPresentation.placed &&
+      !this.bangumiPresentation.placed &&
       (!navigation ||
         ("cell" in navigation && navigation.guided) ||
         distantColumnSelection ||
-        this.musicArchiveMotion.active)
+        this.bangumiArchiveMotion.active)
     ) {
       const chosen = this.cellPosition(cell);
-      this.musicArchiveMotion.retarget(
+      this.bangumiArchiveMotion.retarget(
         {
           rail: this.rail,
           column: this.columnCamera,
@@ -855,7 +855,7 @@ export class ArchiveScene {
       this.appearance.dispose(o.group);
       this.outgoing.splice(returning, 1);
     }
-    if (this.musicNavigationLift && this.musicPresentation.placed) {
+    if (this.bangumiNavigationLift && this.bangumiPresentation.placed) {
     } else this.emitPulse(cell);
     this.targetRotation = 0;
     void this.covers?.select(records[index]);
@@ -1089,21 +1089,21 @@ export class ArchiveScene {
       reveal: number;
       lift: number;
       time: number;
-      musicIntro?: boolean;
+      bangumiIntro?: boolean;
     },
     render = true,
   ) {
     if (this.disposed) return;
     const realDt = Math.max(0, Math.min(time - this.last, 0.05));
-    const speed = !cinematic && !this.reduced ? getMusicMotionSpeed() : 1;
+    const speed = !cinematic && !this.reduced ? getBangumiMotionSpeed() : 1;
     const dt = realDt * speed;
     this.last = time;
     this.clock = !cinematic ? this.clock + dt : time;
     const motionTime = this.clock;
     if (!this.loaded) return;
-    const previewLift = MUSIC_PREVIEW_LIFT;
+    const previewLift = BANGUMI_PREVIEW_LIFT;
     const overview = !cinematic
-      ? this.musicOverview.update(dt, this.reduced)
+      ? this.bangumiOverview.update(dt, this.reduced)
       : 0;
     const extractionScale = !cinematic ? 1 - overview : 1;
     const blend = 1 - Math.exp(-dt * (this.reduced ? 35 : 2.8));
@@ -1112,8 +1112,9 @@ export class ArchiveScene {
       : this.reduced
         ? this.targetReveal
         : THREE.MathUtils.lerp(this.reveal, this.targetReveal, blend);
-    const inspecting = this.targetDetail && this.musicPresentation.placed;
-    const aligningSelection = this.musicNavigationLift && this.returnY !== null;
+    const inspecting = this.targetDetail && this.bangumiPresentation.placed;
+    const aligningSelection =
+      this.bangumiNavigationLift && this.returnY !== null;
     this.rotation = this.reduced
       ? inspecting
         ? this.targetRotation
@@ -1122,23 +1123,23 @@ export class ArchiveScene {
         ? THREE.MathUtils.lerp(this.rotation, this.targetRotation, blend)
         : returnStep(this.rotation, dt, this.reduced);
     if (!cinematic) {
-      this.musicPresentation.returnWhenAligned(this.rotation === 0);
-      this.targetDetail = Number(this.musicPresentation.holdsDetail);
+      this.bangumiPresentation.returnWhenAligned(this.rotation === 0);
+      this.targetDetail = Number(this.bangumiPresentation.holdsDetail);
     }
     const presentationProgress = !cinematic
       ? THREE.MathUtils.clamp(
-          this.musicPlacement.update(this.targetDetail, dt, this.reduced),
+          this.bangumiPlacement.update(this.targetDetail, dt, this.reduced),
           0,
           1,
         )
       : 0;
-    const musicIntro = Boolean(cinematic?.musicIntro);
+    const bangumiIntro = Boolean(cinematic?.bangumiIntro);
     const shot =
-      musicIntro && cinematic
+      bangumiIntro && cinematic
         ? Math.min(cinematic.time, 27.12)
         : (cinematic?.time ?? 29.1);
     const introPose =
-      musicIntro && cinematic ? musicIntroPose(shot) : undefined;
+      bangumiIntro && cinematic ? bangumiIntroPose(shot) : undefined;
     const introSettle = introPose?.settle ?? 0;
     if (cinematic) {
       this.scanTime = shot;
@@ -1151,8 +1152,8 @@ export class ArchiveScene {
     const chosen = this.cellPosition(this.selectedCell);
     const selectedRow = this.selectedCell.row;
     const selectedLane = this.selectedCell.lane;
-    const navigationLift = !cinematic && this.musicNavigationLift;
-    const detailNavigation = navigationLift && this.musicPresentation.placed;
+    const navigationLift = !cinematic && this.bangumiNavigationLift;
+    const detailNavigation = navigationLift && this.bangumiPresentation.placed;
     const archiveTracks = {
       rail: this.rail,
       column: this.columnCamera,
@@ -1169,28 +1170,32 @@ export class ArchiveScene {
       rail: this.reduced
         ? 35
         : detailNavigation
-          ? MUSIC_ALBUM_SWITCH_RATE
+          ? BANGUMI_ALBUM_SWITCH_RATE
           : 3.7,
       column: this.reduced
         ? 35
         : detailNavigation
-          ? MUSIC_ALBUM_SWITCH_RATE
+          ? BANGUMI_ALBUM_SWITCH_RATE
           : 3.7,
       shoulder: this.reduced
         ? 35
         : detailNavigation
-          ? MUSIC_ALBUM_SWITCH_RATE
+          ? BANGUMI_ALBUM_SWITCH_RATE
           : 5,
-      lane: this.reduced ? 35 : detailNavigation ? MUSIC_ALBUM_SWITCH_RATE : 4,
+      lane: this.reduced
+        ? 35
+        : detailNavigation
+          ? BANGUMI_ALBUM_SWITCH_RATE
+          : 4,
     };
-    if (!cinematic && !detailNavigation && this.musicArchiveMotion.active) {
-      this.musicArchiveMotion.update(archiveTracks, dt, this.reduced);
+    if (!cinematic && !detailNavigation && this.bangumiArchiveMotion.active) {
+      this.bangumiArchiveMotion.update(archiveTracks, dt, this.reduced);
     } else {
       damp(this.shoulder, archiveTargets.shoulder, archiveRates.shoulder, dt);
       damp(this.laneFocus, archiveTargets.lane, archiveRates.lane, dt);
       damp(this.columnCamera, archiveTargets.column, archiveRates.column, dt);
       damp(this.rail, archiveTargets.rail, archiveRates.rail, dt);
-      this.musicArchiveMotion.observe(
+      this.bangumiArchiveMotion.observe(
         archiveTracks,
         archiveTargets,
         archiveRates,
@@ -1203,25 +1208,25 @@ export class ArchiveScene {
       this.rail = { value: -2.17 - chosen.z, velocity: 0 };
     }
     if (cinematic) {
-      this.rail.value = musicIntro ? -2.17 - chosen.z : 0;
+      this.rail.value = bangumiIntro ? -2.17 - chosen.z : 0;
       this.rail.velocity = 0;
       this.lift.value = introPose ? introPose.lift : extraction(shot);
       this.lift.velocity = 0;
       this.shoulder.value = selectedRow;
-      if (musicIntro) this.shoulder.velocity = 0;
+      if (bangumiIntro) this.shoulder.velocity = 0;
       this.laneFocus.value = selectedLane;
       this.laneFocus.velocity = 0;
       this.columnCamera.value = chosen.x;
       this.columnCamera.velocity = 0;
     }
-    const trackX = cinematic && !musicIntro ? 0 : this.columnCamera.value;
+    const trackX = cinematic && !bangumiIntro ? 0 : this.columnCamera.value;
     const center = {
       lane: this.columnCamera.value / this.columnSpacing + 2,
       row: (-this.rail.value - 2.17) / ROW_SPACING + 15.5,
     };
     for (let i = 0; i < this.positions.length; i++) {
       this.cells[i] =
-        !musicIntro && (cinematic || !this.looping)
+        !bangumiIntro && (cinematic || !this.looping)
           ? poolCell(i, this.poolRows)
           : visibleCell(i, center, this.poolRows);
       this.positions[i].set(
@@ -1243,7 +1248,7 @@ export class ArchiveScene {
       motionTime - this.lastInteraction > 2.5;
     this.idleGain = this.reduced
       ? 0
-      : musicIntro
+      : bangumiIntro
         ? 1
         : cinematic
           ? 0
@@ -1267,10 +1272,10 @@ export class ArchiveScene {
      * @returns 当前帧该单元相对静止位置的竖向位移。
      */
     const field = (row: number, lane: number) => {
-      if (musicIntro) {
+      if (bangumiIntro) {
         const relativeLane = lane - selectedLane;
         const depth = row - selectedRow;
-        const opening = musicIntroWave(depth, relativeLane, shot);
+        const opening = bangumiIntroWave(depth, relativeLane, shot);
         const resting =
           settlingWave(row - selectedRow, 26.56) *
             columnStrength(lane, selectedLane) +
@@ -1283,7 +1288,7 @@ export class ArchiveScene {
         return THREE.MathUtils.lerp(
           opening,
           resting,
-          musicIntroLaneSettle(relativeLane, shot),
+          bangumiIntroLaneSettle(relativeLane, shot),
         );
       }
       if (cinematic)
@@ -1312,7 +1317,7 @@ export class ArchiveScene {
         for (const p of this.pulses) {
           const distance = Math.hypot(row - p.row, (lane - p.lane) * 2.2);
           const age = motionTime - p.time;
-          ripple += musicSelectionWave(distance, age);
+          ripple += bangumiSelectionWave(distance, age);
         }
         height += THREE.MathUtils.clamp(ripple, -0.24, 0.24) * this.pulseGain;
       }
@@ -1337,34 +1342,34 @@ export class ArchiveScene {
               o.cell.lane === selectedLane &&
               Math.abs(o.cell.row - selectedRow) < 5,
           );
-          const liftTarget = this.musicPresentation.placed
+          const liftTarget = this.bangumiPresentation.placed
             ? !this.reduced && aligningNeighbor
               ? 0
-              : MUSIC_INSPECTION_LIFT
+              : BANGUMI_INSPECTION_LIFT
             : previewLift * this.targetReveal;
           if (this.reduced) this.lift = { value: liftTarget, velocity: 0 };
           else
             damp(
               this.lift,
               liftTarget,
-              detailNavigation ? MUSIC_ALBUM_SWITCH_RATE : 4.2,
+              detailNavigation ? BANGUMI_ALBUM_SWITCH_RATE : 4.2,
               dt,
             );
         } else if (
           presentationProgress > 0 ||
-          !this.musicPlacement.settled ||
+          !this.bangumiPlacement.settled ||
           this.targetDetail
         ) {
           const restingLift = previewLift * this.targetReveal;
           this.lift.value = THREE.MathUtils.lerp(
             restingLift,
-            MUSIC_INSPECTION_LIFT,
+            BANGUMI_INSPECTION_LIFT,
             presentationProgress,
           );
           this.lift.velocity =
-            this.musicPlacement.value === presentationProgress
-              ? (MUSIC_INSPECTION_LIFT - restingLift) *
-                this.musicPlacement.velocity
+            this.bangumiPlacement.value === presentationProgress
+              ? (BANGUMI_INSPECTION_LIFT - restingLift) *
+                this.bangumiPlacement.velocity
               : 0;
         } else
           damp(
@@ -1383,9 +1388,9 @@ export class ArchiveScene {
       }
     }
     this.detail = cinematic
-      ? musicIntro
+      ? bangumiIntro
         ? 0
-        : musicCinematicPose(shot).detail
+        : bangumiCinematicPose(shot).detail
       : presentationProgress;
     const detail = this.detail;
     this.decryption.update(
@@ -1401,7 +1406,7 @@ export class ArchiveScene {
     this.appearance.setClarity(this.model, this.decryption.clarity);
     const entry = cinematic ? smooth((shot - 21.9) / 0.86) : this.reveal;
     const entranceTime = THREE.MathUtils.clamp((shot - 21.92) / 0.75, 0, 1);
-    const entryZ = musicIntro
+    const entryZ = bangumiIntro
       ? 0
       : cinematic
         ? -23 * (1 - entranceTime) ** 2
@@ -1424,7 +1429,11 @@ export class ArchiveScene {
         damp(
           o.lift,
           0,
-          this.reduced ? 35 : detailNavigation ? MUSIC_ALBUM_SWITCH_RATE : 4.5,
+          this.reduced
+            ? 35
+            : detailNavigation
+              ? BANGUMI_ALBUM_SWITCH_RATE
+              : 4.5,
           dt,
         );
       o.group.position.set(
@@ -1442,9 +1451,9 @@ export class ArchiveScene {
         0.024 *
         (1 - detail) *
         (1 - quality);
-      this.applyMusicColumnExtent(
+      this.applyBangumiColumnExtent(
         o.group,
-        cinematic ? 1 : this.musicColumnExtent(o.cell.lane),
+        cinematic ? 1 : this.bangumiColumnExtent(o.cell.lane),
       );
       if (o.lift.value < 0.0001 && Math.abs(o.group.rotation.y) < 0.0001) {
         this.content.remove(o.group);
@@ -1466,10 +1475,12 @@ export class ArchiveScene {
       this.dummy.rotation.set(slope * 0.024 * (1 - detail), 0, 0);
       const hiddenCell =
         hidden.has(cellKey(this.cells[i])) ||
-        (!musicIntro && (cinematic || !this.looping) && i >= 5 * this.poolRows);
-      this.applyMusicColumnExtent(
+        (!bangumiIntro &&
+          (cinematic || !this.looping) &&
+          i >= 5 * this.poolRows);
+      this.applyBangumiColumnExtent(
         this.dummy,
-        hiddenCell ? 0 : cinematic ? 1 : this.musicColumnExtent(lane),
+        hiddenCell ? 0 : cinematic ? 1 : this.bangumiColumnExtent(lane),
       );
       this.dummy.updateMatrix();
       for (const inst of this.instances) inst.setMatrixAt(i, this.dummy.matrix);
@@ -1496,14 +1507,14 @@ export class ArchiveScene {
       cinematic ? 0 : this.rotation,
       0,
     );
-    this.applyMusicColumnExtent(
+    this.applyBangumiColumnExtent(
       this.model,
-      cinematic ? 1 : this.musicColumnExtent(selectedLane),
+      cinematic ? 1 : this.bangumiColumnExtent(selectedLane),
     );
     const orbit = smooth((shot - 22.6) / 1.6);
     const settle = smooth((shot - 24.25) / 2.25);
     const navigationElevation = !cinematic
-      ? this.musicCamera.navigationElevation(
+      ? this.bangumiCamera.navigationElevation(
           this.rail.velocity / ROW_SPACING,
           detail,
           dt,
@@ -1548,14 +1559,14 @@ export class ArchiveScene {
       Math.sin(elevation),
       Math.cos(yaw) * Math.cos(elevation),
     );
-    if (cinematic && !musicIntro) {
-      const musicPose = musicCinematicPose(
+    if (cinematic && !bangumiIntro) {
+      const bangumiPose = bangumiCinematicPose(
         shot,
         THREE.MathUtils.radToDeg(yaw),
         THREE.MathUtils.radToDeg(elevation),
       );
-      const shotYaw = THREE.MathUtils.degToRad(musicPose.yaw);
-      const shotElevation = THREE.MathUtils.degToRad(musicPose.elevation);
+      const shotYaw = THREE.MathUtils.degToRad(bangumiPose.yaw);
+      const shotElevation = THREE.MathUtils.degToRad(bangumiPose.elevation);
       viewDirection.set(
         -Math.sin(shotYaw) * Math.cos(shotElevation),
         Math.sin(shotElevation),
@@ -1566,7 +1577,7 @@ export class ArchiveScene {
       const inspectionYaw = THREE.MathUtils.lerp(yaw, detailYaw, detail);
       const inspectionElevation = THREE.MathUtils.lerp(
         elevation,
-        MUSIC_DETAIL_ELEVATION,
+        BANGUMI_DETAIL_ELEVATION,
         detail,
       );
       viewDirection.set(
@@ -1575,7 +1586,7 @@ export class ArchiveScene {
         Math.cos(inspectionYaw) * Math.cos(inspectionElevation),
       );
     }
-    if (cinematic && !musicIntro) {
+    if (cinematic && !bangumiIntro) {
       const pan = smooth((shot - 25.4) / 0.95);
       const right = new THREE.Vector3()
         .crossVectors(new THREE.Vector3(0, 1, 0), viewDirection)
@@ -1585,7 +1596,7 @@ export class ArchiveScene {
         -2.05 * (1 - pan) * smooth((shot - 24.2) / 0.8),
       );
     }
-    if (cinematic && !musicIntro && shot >= 25.05 && shot <= 27.3) {
+    if (cinematic && !bangumiIntro && shot >= 25.05 && shot <= 27.3) {
       const pan = smooth((shot - 25.4) / 1.05);
       const right = new THREE.Vector3()
         .crossVectors(new THREE.Vector3(0, 1, 0), viewDirection)
@@ -1598,8 +1609,8 @@ export class ArchiveScene {
         .clone()
         .add(
           new THREE.Vector3(
-            -MUSIC_MODEL.width / 2,
-            MUSIC_MODEL.center.y + MUSIC_MODEL.height / 2,
+            -BANGUMI_MODEL.width / 2,
+            BANGUMI_MODEL.center.y + BANGUMI_MODEL.height / 2,
             0,
           ),
         );
@@ -1613,10 +1624,10 @@ export class ArchiveScene {
       );
       cameraAim.lerp(anchorAim, smooth((shot - 25.05) / 0.35));
     }
-    if (cinematic && !musicIntro && shot > 27.3) {
-      const musicAnchor = musicExtractionAnchor(shot);
-      const screenX = musicAnchor.x;
-      const screenY = musicAnchor.y;
+    if (cinematic && !bangumiIntro && shot > 27.3) {
+      const bangumiAnchor = bangumiExtractionAnchor(shot);
+      const screenX = bangumiAnchor.x;
+      const screenY = bangumiAnchor.y;
       const pixelScale = 1080 / THREE.MathUtils.lerp(span, 5.9, detail);
       const right = new THREE.Vector3()
         .crossVectors(new THREE.Vector3(0, 1, 0), viewDirection)
@@ -1628,8 +1639,8 @@ export class ArchiveScene {
         .clone()
         .add(
           new THREE.Vector3(
-            -MUSIC_MODEL.width / 2,
-            MUSIC_MODEL.center.y + MUSIC_MODEL.height / 2,
+            -BANGUMI_MODEL.width / 2,
+            BANGUMI_MODEL.center.y + BANGUMI_MODEL.height / 2,
             0,
           ),
         );
@@ -1638,8 +1649,8 @@ export class ArchiveScene {
       cameraAim.copy(anchorAim);
       const centerAim = this.model.position
         .clone()
-        .add(new THREE.Vector3().copy(MUSIC_MODEL.center));
-      cameraAim.lerp(centerAim, musicCinematicPose(shot).centered);
+        .add(new THREE.Vector3().copy(BANGUMI_MODEL.center));
+      cameraAim.lerp(centerAim, bangumiCinematicPose(shot).centered);
     }
     const width = this.container.clientWidth,
       height = this.container.clientHeight;
@@ -1658,13 +1669,13 @@ export class ArchiveScene {
       .crossVectors(viewDirection, right)
       .normalize();
     const previewShift = new THREE.Vector3();
-    const offset = musicArchiveOffset(width, height);
+    const offset = bangumiArchiveOffset(width, height);
     previewShift.addScaledVector(
       right,
       (offset.x * framing.span * width) / Math.max(1, height),
     );
     previewShift.addScaledVector(up, offset.y * framing.span);
-    if (musicIntro) {
+    if (bangumiIntro) {
       const previewAim = new THREE.Vector3(-1.091, -0.045, 0.481);
       if (framing.portrait) {
         previewAim.set(0, -4.6 + settlingWave(0, 26.56) + 0.4 + 1.85, -2.17);
@@ -1692,8 +1703,8 @@ export class ArchiveScene {
         0,
         -4.6 +
           settlingWave(0, 26.56) +
-          MUSIC_INSPECTION_LIFT +
-          MUSIC_MODEL.center.y,
+          BANGUMI_INSPECTION_LIFT +
+          BANGUMI_MODEL.center.y,
         -2.17,
       );
       const detailX = framing.portrait ? 0.5 : 0.25;
@@ -1734,12 +1745,12 @@ export class ArchiveScene {
           overview,
         ),
       );
-    if (!cinematic && !this.reduced && !this.musicPresentation.holdsDetail) {
+    if (!cinematic && !this.reduced && !this.bangumiPresentation.holdsDetail) {
       cameraPosition.x += this.pointer.x * 0.12;
       cameraPosition.y -= this.pointer.y * 0.12;
     }
     if (!cinematic) {
-      this.musicCamera.update(
+      this.bangumiCamera.update(
         this.camera,
         this.cameraAim,
         cameraPosition,
@@ -1748,11 +1759,11 @@ export class ArchiveScene {
         dt,
         this.reduced,
       );
-      const detailTarget = this.musicPresentation.holdsDetail ? 1 : 0;
-      const liftTarget = this.musicPresentation.holdsDetail
-        ? MUSIC_INSPECTION_LIFT
+      const detailTarget = this.bangumiPresentation.holdsDetail ? 1 : 0;
+      const liftTarget = this.bangumiPresentation.holdsDetail
+        ? BANGUMI_INSPECTION_LIFT
         : previewLift * this.targetReveal;
-      const tracksSettled = musicArchiveTracksSettled(
+      const tracksSettled = bangumiArchiveTracksSettled(
         {
           rail: this.rail,
           column: this.columnCamera,
@@ -1766,17 +1777,17 @@ export class ArchiveScene {
           lane: selectedLane,
         },
       );
-      this.musicPresentation.update(
+      this.bangumiPresentation.update(
         dt,
-        this.musicCamera.isSettled(
+        this.bangumiCamera.isSettled(
           this.camera,
           this.cameraAim,
           cameraPosition,
           cameraAim,
           framing.span,
         ),
-        this.musicPlacement.settled &&
-          this.musicArchiveMotion.settled &&
+        this.bangumiPlacement.settled &&
+          this.bangumiArchiveMotion.settled &&
           tracksSettled &&
           Math.abs(this.detail - detailTarget) < 0.001 &&
           Math.abs(this.lift.value - liftTarget) < 0.008 &&
@@ -1784,9 +1795,9 @@ export class ArchiveScene {
           Math.abs(this.lift.velocity) < 0.025,
         this.reduced,
       );
-      this.targetDetail = Number(this.musicPresentation.holdsDetail);
-      if (this.musicPresentation.phase === "archive")
-        this.musicNavigationLift = false;
+      this.targetDetail = Number(this.bangumiPresentation.holdsDetail);
+      if (this.bangumiPresentation.phase === "archive")
+        this.bangumiNavigationLift = false;
     } else {
       const cameraBlend = cinematic ? 1 : 1 - Math.exp(-dt * 5);
       this.camera.position.lerp(cameraPosition, cameraBlend);
@@ -1797,7 +1808,7 @@ export class ArchiveScene {
         THREE.MathUtils.radToDeg(
           2 *
             Math.atan(
-              (cinematic && !musicIntro
+              (cinematic && !bangumiIntro
                 ? THREE.MathUtils.lerp(span, 5.9, detail)
                 : framing.span) /
                 (2 * distance),
@@ -1805,11 +1816,11 @@ export class ArchiveScene {
         ),
         cameraBlend,
       );
-      this.musicCamera.observe(this.camera, this.cameraAim, dt);
+      this.bangumiCamera.observe(this.camera, this.cameraAim, dt);
     }
     const fog = this.scene.fog as THREE.Fog;
     const renderedDistance = this.camera.position.distanceTo(this.cameraAim);
-    const atmosphere = musicFogDistances(renderedDistance, detail);
+    const atmosphere = bangumiFogDistances(renderedDistance, detail);
     fog.near = atmosphere.near;
     fog.far = atmosphere.far;
     if (this.stars?.visible) {
@@ -1829,8 +1840,8 @@ export class ArchiveScene {
     this.camera.updateProjectionMatrix();
     this.camera.updateMatrixWorld();
     let neighborTop = -Infinity;
-    const boxTop = MUSIC_MODEL.center.y + MUSIC_MODEL.height / 2;
-    const boxBottom = MUSIC_MODEL.center.y - MUSIC_MODEL.height / 2;
+    const boxTop = BANGUMI_MODEL.center.y + BANGUMI_MODEL.height / 2;
+    const boxBottom = BANGUMI_MODEL.center.y - BANGUMI_MODEL.height / 2;
     const lane = selectedLane,
       row = selectedRow;
     for (let r = row - 5; r <= row + 5; r++) {
@@ -1845,7 +1856,7 @@ export class ArchiveScene {
     this.clearance = this.model.position.y + boxBottom - neighborTop;
     this.canInspect =
       !cinematic &&
-      this.musicPresentation.phase === "presented" &&
+      this.bangumiPresentation.phase === "presented" &&
       Boolean(this.targetDetail) &&
       detail > 0.9 &&
       this.pulseGain < 0.01 &&
@@ -1867,7 +1878,7 @@ export class ArchiveScene {
       {
         row: selectedRow + this.coordinateOrigin.row,
         lane: selectedLane + this.coordinateOrigin.lane,
-        introTime: musicIntro ? shot : undefined,
+        introTime: bangumiIntro ? shot : undefined,
       },
     );
     this.renderer.shadowMap.autoUpdate = false;
@@ -1883,7 +1894,7 @@ export class ArchiveScene {
    *
    * 异步准备可见封面并执行有限帧绘制，初始化透射、阴影、AO 与景深目标。
    */
-  async prepareMusicRenderer() {
+  async prepareBangumiRenderer() {
     if (!this.loaded || this.disposed) return;
     const started = performance.now();
     const nextFrame = () =>
@@ -1892,7 +1903,7 @@ export class ArchiveScene {
       reveal: 1,
       lift: 0,
       time: 27.12,
-      musicIntro: true,
+      bangumiIntro: true,
     };
     this.update(started / 1000, settled, false);
     const visible = this.model.visible;
@@ -1961,10 +1972,10 @@ export class ArchiveScene {
     this.outgoing = [];
     this.renderer.info.autoReset = true;
   }
-  get musicArchiveReady() {
-    return this.loaded && this.musicPresentation.phase === "archive";
+  get bangumiArchiveReady() {
+    return this.loaded && this.bangumiPresentation.phase === "archive";
   }
-  get musicPresentationPhase() {
-    return this.musicPresentation.phase;
+  get bangumiPresentationPhase() {
+    return this.bangumiPresentation.phase;
   }
 }

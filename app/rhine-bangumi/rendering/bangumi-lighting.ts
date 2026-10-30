@@ -1,20 +1,20 @@
 import * as THREE from "three";
-import { MUSIC_MODEL } from "./music-model";
-import type { RowLightingFrame } from "./music-row-lighting";
+import { BANGUMI_MODEL } from "./bangumi-model";
+import type { RowLightingFrame } from "./bangumi-row-lighting";
 import {
   DEFAULT_LIGHTING_PRESET,
   followRowLight,
   introRowOffset,
   ROW_LIGHTING,
   ROW_LIGHTING_GLSL,
-} from "./music-row-lighting";
+} from "./bangumi-row-lighting";
 
 /**
  * 管理选中盒体与阵列的动态照明。
  *
  * 持有局部聚光灯和共享 Shader uniform，并在每帧同步行、列光带的位置。
  */
-export class MusicSelectionLighting {
+export class BangumiSelectionLighting {
   readonly spot = new THREE.SpotLight("#ffe3b2", 70 * 64, 0, 0.32, 0.95, 2);
   private readonly experiment = DEFAULT_LIGHTING_PRESET;
   private readonly rowSettings = {
@@ -43,10 +43,10 @@ export class MusicSelectionLighting {
   private readonly printAmbient = { value: 0.94 };
   private readonly shellBounds = {
     value: new THREE.Vector4(
-      MUSIC_MODEL.center.x - MUSIC_MODEL.width / 2,
-      MUSIC_MODEL.center.y - MUSIC_MODEL.height / 2,
-      MUSIC_MODEL.center.y + MUSIC_MODEL.height / 2,
-      1 / MUSIC_MODEL.height,
+      BANGUMI_MODEL.center.x - BANGUMI_MODEL.width / 2,
+      BANGUMI_MODEL.center.y - BANGUMI_MODEL.height / 2,
+      BANGUMI_MODEL.center.y + BANGUMI_MODEL.height / 2,
+      1 / BANGUMI_MODEL.height,
     ),
   };
   private readonly edgeFalloff = { value: new THREE.Vector2(1.7, 24) };
@@ -90,39 +90,39 @@ export class MusicSelectionLighting {
    * @param shader 待注入 uniform 或片段的 Three.js Shader。
    */
   shadePrint(shader: THREE.WebGLProgramParametersWithUniforms) {
-    shader.uniforms.musicPrintLightColumn = this.column;
-    shader.uniforms.musicPrintAmbient = this.printAmbient;
-    shader.uniforms.musicRowSettings = this.rowSettings;
-    shader.uniforms.musicRowDetail = this.rowDetail;
-    shader.uniforms.musicRowColumn = this.rowColumn;
-    shader.vertexShader = `varying vec3 vMusicPrintOrigin;\n${shader.vertexShader}`;
+    shader.uniforms.bangumiPrintLightColumn = this.column;
+    shader.uniforms.bangumiPrintAmbient = this.printAmbient;
+    shader.uniforms.bangumiRowSettings = this.rowSettings;
+    shader.uniforms.bangumiRowDetail = this.rowDetail;
+    shader.uniforms.bangumiRowColumn = this.rowColumn;
+    shader.vertexShader = `varying vec3 vBangumiPrintOrigin;\n${shader.vertexShader}`;
     shader.vertexShader = shader.vertexShader.replace(
       "#include <begin_vertex>",
       `
       #include <begin_vertex>
-      vec4 musicPrintOrigin = vec4(0.0, 0.0, 0.0, 1.0);
+      vec4 bangumiPrintOrigin = vec4(0.0, 0.0, 0.0, 1.0);
       #ifdef USE_INSTANCING
-        musicPrintOrigin = instanceMatrix * musicPrintOrigin;
+        bangumiPrintOrigin = instanceMatrix * bangumiPrintOrigin;
       #endif
-      vMusicPrintOrigin = (modelMatrix * musicPrintOrigin).xyz;
+      vBangumiPrintOrigin = (modelMatrix * bangumiPrintOrigin).xyz;
     `,
     );
     shader.fragmentShader = `
-      varying vec3 vMusicPrintOrigin;
-      uniform vec3 musicPrintLightColumn;
-      uniform float musicPrintAmbient;
+      varying vec3 vBangumiPrintOrigin;
+      uniform vec3 bangumiPrintLightColumn;
+      uniform float bangumiPrintAmbient;
       ${ROW_LIGHTING_GLSL}
     ${shader.fragmentShader}`;
     shader.fragmentShader = shader.fragmentShader.replace(
       "#include <opaque_fragment>",
       `
-      vec3 printDistance = (vMusicPrintOrigin - musicPrintLightColumn) / vec3(6.0, 3.35, 5.5);
+      vec3 printDistance = (vBangumiPrintOrigin - bangumiPrintLightColumn) / vec3(6.0, 3.35, 5.5);
       float printLight = exp(-dot(printDistance, printDistance));
-      float rowField = musicRowField(vMusicPrintOrigin, musicRowColumn);
-      float baselineExposure = mix(musicPrintAmbient, 1.0, printLight);
-      float guidedGain = clamp(musicRowSettings.x * rowField, 0.0, 1.0);
+      float rowField = bangumiRowField(vBangumiPrintOrigin, bangumiRowColumn);
+      float baselineExposure = mix(bangumiPrintAmbient, 1.0, printLight);
+      float guidedGain = clamp(bangumiRowSettings.x * rowField, 0.0, 1.0);
       float shelfExposure = mix(baselineExposure, 1.0, guidedGain);
-      outgoingLight *= mix(shelfExposure, baselineExposure, musicRowDetail);
+      outgoingLight *= mix(shelfExposure, baselineExposure, bangumiRowDetail);
       #include <opaque_fragment>
     `,
     );
@@ -138,39 +138,39 @@ export class MusicSelectionLighting {
    */
   shade(shader: THREE.WebGLProgramParametersWithUniforms, surface: string) {
     if (surface === "Album_Print") return;
-    shader.uniforms.musicLightColumn = this.column;
-    shader.uniforms.musicScatterColor = this.scatterColor;
-    shader.uniforms.musicScatterStrength = this.scatterStrength;
-    shader.uniforms.musicShellBounds = this.shellBounds;
-    shader.uniforms.musicEdgeFalloff = this.edgeFalloff;
-    shader.uniforms.musicRowColumn = this.rowColumn;
-    shader.uniforms.musicRowSettings = this.rowSettings;
-    shader.uniforms.musicRowDetail = this.rowDetail;
+    shader.uniforms.bangumiLightColumn = this.column;
+    shader.uniforms.bangumiScatterColor = this.scatterColor;
+    shader.uniforms.bangumiScatterStrength = this.scatterStrength;
+    shader.uniforms.bangumiShellBounds = this.shellBounds;
+    shader.uniforms.bangumiEdgeFalloff = this.edgeFalloff;
+    shader.uniforms.bangumiRowColumn = this.rowColumn;
+    shader.uniforms.bangumiRowSettings = this.rowSettings;
+    shader.uniforms.bangumiRowDetail = this.rowDetail;
     const declarations = `
-      varying vec3 vMusicLocal;
-      varying vec3 vMusicOrigin;
+      varying vec3 vBangumiLocal;
+      varying vec3 vBangumiOrigin;
     `;
     shader.vertexShader = declarations + shader.vertexShader;
     shader.vertexShader = shader.vertexShader.replace(
       "#include <begin_vertex>",
       `
       #include <begin_vertex>
-      vMusicLocal = position;
-      vec4 musicOrigin = vec4(0.0, 0.0, 0.0, 1.0);
+      vBangumiLocal = position;
+      vec4 bangumiOrigin = vec4(0.0, 0.0, 0.0, 1.0);
       #ifdef USE_INSTANCING
-        musicOrigin = instanceMatrix * musicOrigin;
+        bangumiOrigin = instanceMatrix * bangumiOrigin;
       #endif
-      vMusicOrigin = (modelMatrix * musicOrigin).xyz;
+      vBangumiOrigin = (modelMatrix * bangumiOrigin).xyz;
     `,
     );
     shader.fragmentShader =
       declarations +
       `
-      uniform vec3 musicLightColumn;
-      uniform vec3 musicScatterColor;
-      uniform float musicScatterStrength;
-      uniform vec4 musicShellBounds;
-      uniform vec2 musicEdgeFalloff;
+      uniform vec3 bangumiLightColumn;
+      uniform vec3 bangumiScatterColor;
+      uniform float bangumiScatterStrength;
+      uniform vec4 bangumiShellBounds;
+      uniform vec2 bangumiEdgeFalloff;
       ${ROW_LIGHTING_GLSL}
     ` +
       shader.fragmentShader;
@@ -179,18 +179,18 @@ export class MusicSelectionLighting {
     shader.fragmentShader = shader.fragmentShader.replace(
       "#include <opaque_fragment>",
       `
-      vec3 musicOriginalOutgoing = outgoingLight;
-      float laneDistance = abs(vMusicOrigin.x - musicLightColumn.x);
+      vec3 bangumiOriginalOutgoing = outgoingLight;
+      float laneDistance = abs(vBangumiOrigin.x - bangumiLightColumn.x);
       float laneRadius = laneDistance / 3.2;
       float coreLight = exp(-laneRadius * laneRadius * laneRadius * laneRadius);
       float spillRadius = laneDistance / 7.2;
       float spillLight = exp(-spillRadius * spillRadius * spillRadius * spillRadius);
       float laneLight = 0.58 * coreLight + 0.42 * spillLight;
-      float rowDistance = (vMusicOrigin.z - musicLightColumn.z) / 5.5;
+      float rowDistance = (vBangumiOrigin.z - bangumiLightColumn.z) / 5.5;
       float rowLight = exp(-rowDistance * rowDistance);
-      float hotDistance = (vMusicOrigin.z - musicLightColumn.z) / 1.1;
+      float hotDistance = (vBangumiOrigin.z - bangumiLightColumn.z) / 1.1;
       float hotLight = exp(-hotDistance * hotDistance);
-      float neighborDistance = (vMusicOrigin.z - musicLightColumn.z) / 2.4;
+      float neighborDistance = (vBangumiOrigin.z - bangumiLightColumn.z) / 2.4;
       float neighborLight = exp(-neighborDistance * neighborDistance);
       float guidedLight = 0.58 * coreLight * mix(0.12, 1.0, rowLight)
                         + 0.42 * spillLight * neighborLight;
@@ -198,44 +198,44 @@ export class MusicSelectionLighting {
       ${
         glass || spine
           ? `
-        float fromSpine = max(0.0, vMusicLocal.x - musicShellBounds.x);
-        float edgeTransport = exp(-fromSpine * musicEdgeFalloff.x);
-        float panelHeight = clamp((vMusicLocal.y - musicShellBounds.y) * musicShellBounds.w, 0.0, 1.0);
+        float fromSpine = max(0.0, vBangumiLocal.x - bangumiShellBounds.x);
+        float edgeTransport = exp(-fromSpine * bangumiEdgeFalloff.x);
+        float panelHeight = clamp((vBangumiLocal.y - bangumiShellBounds.y) * bangumiShellBounds.w, 0.0, 1.0);
         float lowerLight = mix(1.0, 0.62, panelHeight);
-        float topRim = exp(-max(0.0, musicShellBounds.z - vMusicLocal.y) * musicEdgeFalloff.y);
+        float topRim = exp(-max(0.0, bangumiShellBounds.z - vBangumiLocal.y) * bangumiEdgeFalloff.y);
         float grazing = 1.0 - clamp(abs(dot(normal, normalize(vViewPosition))), 0.0, 1.0);
         float edgeScatter = ${spine ? "0.30" : "0.14"} * edgeTransport + ${spine ? "0.016" : "0.003"};
-        outgoingLight += musicScatterColor * musicScatterStrength * guidedLight * edgeScatter * lowerLight;
+        outgoingLight += bangumiScatterColor * bangumiScatterStrength * guidedLight * edgeScatter * lowerLight;
         float ribbon = topRim * (0.22 + 0.78 * edgeTransport) + ${spine ? "0.18" : "0.035"} * edgeTransport * grazing;
-        outgoingLight += musicScatterColor * musicScatterStrength * laneLight * hotLight * ribbon * 0.8;
+        outgoingLight += bangumiScatterColor * bangumiScatterStrength * laneLight * hotLight * ribbon * 0.8;
       `
           : ""
       }
       {
-        vec3 musicSelectedOutgoing = outgoingLight;
-        outgoingLight = musicOriginalOutgoing;
-        float rowField = musicRowField(vMusicOrigin, musicRowColumn);
-        float rowGain = rowField * musicRowSettings.x;
+        vec3 bangumiSelectedOutgoing = outgoingLight;
+        outgoingLight = bangumiOriginalOutgoing;
+        float rowField = bangumiRowField(vBangumiOrigin, bangumiRowColumn);
+        float rowGain = rowField * bangumiRowSettings.x;
         float shellAmbient = mix(0.96, 1.04, guidedLight);
         float shelfExposure = mix(shellAmbient, 1.08, clamp(rowGain, 0.0, 1.0));
         outgoingLight *= shelfExposure;
         ${
           glass || spine
             ? `
-          float fromSpine = max(0.0, vMusicLocal.x - musicShellBounds.x);
-          float edgeTransport = exp(-fromSpine * musicEdgeFalloff.x);
-          float topRim = exp(-max(0.0, musicShellBounds.z - vMusicLocal.y) * musicEdgeFalloff.y);
+          float fromSpine = max(0.0, vBangumiLocal.x - bangumiShellBounds.x);
+          float edgeTransport = exp(-fromSpine * bangumiEdgeFalloff.x);
+          float topRim = exp(-max(0.0, bangumiShellBounds.z - vBangumiLocal.y) * bangumiEdgeFalloff.y);
           float grazing = 1.0 - clamp(abs(dot(normal, normalize(vViewPosition))), 0.0, 1.0);
-          float panelHeight = clamp((vMusicLocal.y - musicShellBounds.y) * musicShellBounds.w, 0.0, 1.0);
+          float panelHeight = clamp((vBangumiLocal.y - bangumiShellBounds.y) * bangumiShellBounds.w, 0.0, 1.0);
           float panelScatter = ${spine ? "0.30" : "0.12"} * edgeTransport + ${spine ? "0.05" : "0.025"};
           float rimScatter = topRim * (0.55 + 0.45 * edgeTransport) +
             ${spine ? "0.24" : "0.07"} * edgeTransport * grazing;
           float scatter = panelScatter * mix(1.0, 0.78, panelHeight) + rimScatter * 1.25;
-          outgoingLight += musicScatterColor * musicScatterStrength * rowGain * scatter;
+          outgoingLight += bangumiScatterColor * bangumiScatterStrength * rowGain * scatter;
         `
             : ""
         }
-        outgoingLight = mix(outgoingLight, musicSelectedOutgoing, musicRowDetail);
+        outgoingLight = mix(outgoingLight, bangumiSelectedOutgoing, bangumiRowDetail);
       }
       #include <opaque_fragment>
     `,
@@ -294,9 +294,9 @@ export class MusicSelectionLighting {
     const columnTarget = this.worldOrigin;
     this.aim
       .set(
-        MUSIC_MODEL.center.x - MUSIC_MODEL.width / 2 + 0.14,
-        MUSIC_MODEL.center.y + MUSIC_MODEL.height * 0.12,
-        MUSIC_MODEL.center.z,
+        BANGUMI_MODEL.center.x - BANGUMI_MODEL.width / 2 + 0.14,
+        BANGUMI_MODEL.center.y + BANGUMI_MODEL.height * 0.12,
+        BANGUMI_MODEL.center.z,
       )
       .applyMatrix4(model.matrixWorld);
     if (!this.initialized || reduced || cinematic) {

@@ -1,5 +1,5 @@
+import { createTitleReels, type TitleGlyph } from "./bangumi-title-reels";
 import { escapeHtml } from "./html";
-import { createTitleReels, type TitleGlyph } from "./music-title-reels";
 
 export function albumTitleParts(title: string) {
   const match = title.trim().match(/^(.+?)[（(]([^（）()]+)[）)]\s*$/u);
@@ -16,7 +16,7 @@ export function albumTitleParts(title: string) {
 
 export function albumTitleMarkup(title: string) {
   const { main, translation } = albumTitleParts(title);
-  return `<span class="music-title-main">${escapeHtml(main)}</span>${translation ? `<span class="music-title-translation">${escapeHtml(translation)}</span>` : ""}`;
+  return `<span class="bangumi-title-main">${escapeHtml(main)}</span>${translation ? `<span class="bangumi-title-translation">${escapeHtml(translation)}</span>` : ""}`;
 }
 
 type Candidate = {
@@ -67,25 +67,25 @@ function sameLayout(a: TitleLayout | undefined, b: TitleLayout) {
  * @returns 标题更新与销毁句柄。
  * @throws 标题或布局依赖的 DOM 元素不存在时抛出异常。
  */
-export function setupMusicTitleLayout(root: HTMLElement) {
+export function setupBangumiTitleLayout(root: HTMLElement) {
   const required = (selector: string) => {
     const element = root.querySelector<HTMLElement>(selector);
-    if (!element) throw new Error(`Missing music title element: ${selector}`);
+    if (!element) throw new Error(`Missing bangumi title element: ${selector}`);
     return element;
   };
   const title = required("#selection-title");
   const callout = required(".album-callout");
-  const navigation = required(".music-navigation");
+  const navigation = required(".bangumi-navigation");
   const spacer = document.createElement("span");
-  spacer.className = "music-title-layout";
+  spacer.className = "bangumi-title-layout";
   spacer.setAttribute("aria-hidden", "true");
   const visual = document.createElement("span");
-  visual.className = "music-title-rolling";
+  visual.className = "bangumi-title-rolling";
   visual.setAttribute("aria-hidden", "true");
   title.replaceChildren(spacer, visual);
   const reels = createTitleReels(visual, spacer);
   const probe = document.createElement("h1");
-  probe.className = "music-title-probe";
+  probe.className = "bangumi-title-probe";
   probe.setAttribute("aria-hidden", "true");
   probe.inert = true;
   callout.append(probe);
@@ -96,7 +96,7 @@ export function setupMusicTitleLayout(root: HTMLElement) {
       ? new Intl.Segmenter(undefined, { granularity: "grapheme" })
       : undefined;
   const canvas = document.createElement("canvas").getContext("2d");
-  if (!canvas) throw new Error("Unable to measure music title text");
+  if (!canvas) throw new Error("Unable to measure bangumi title text");
   let text = "",
     displayed = "",
     enabled = false,
@@ -121,11 +121,11 @@ export function setupMusicTitleLayout(root: HTMLElement) {
     let candidate = candidates[index];
     if (candidate) return candidate;
     const element = document.createElement("span");
-    element.className = "music-title-candidate";
+    element.className = "bangumi-title-candidate";
     const main = document.createElement("span");
-    main.className = "music-title-main";
+    main.className = "bangumi-title-main";
     const translation = document.createElement("span");
-    translation.className = "music-title-translation";
+    translation.className = "bangumi-title-translation";
     element.append(main, translation);
     probe.append(element);
     candidate = { root: element, main, translation, size: 0 };

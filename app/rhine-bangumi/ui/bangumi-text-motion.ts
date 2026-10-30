@@ -4,9 +4,9 @@ import {
 } from "@kitlangton/rolling-number";
 import type { ArchiveNavigation } from "../archive/archive-loop";
 import {
-  musicMotionDuration,
-  onMusicMotionSpeedChange,
-} from "../motion/music-motion";
+  bangumiMotionDuration,
+  onBangumiMotionSpeedChange,
+} from "../motion/bangumi-motion";
 
 type SelectionText = {
   number: number;
@@ -30,19 +30,19 @@ type SelectionText = {
  * @returns 文字更新与销毁句柄。
  * @throws 必需的文字容器不存在时抛出异常。
  */
-export function setupMusicTextMotion(root: HTMLElement) {
+export function setupBangumiTextMotion(root: HTMLElement) {
   const required = (id: string) => {
     const element = root.querySelector<HTMLElement>(`#${id}`);
-    if (!element) throw new Error(`Missing music text element: ${id}`);
+    if (!element) throw new Error(`Missing bangumi text element: ${id}`);
     return element;
   };
   const host = (id: string, kind: "text" | "number") => {
     const element = required(id);
-    element.classList.add(`music-rolling-${kind}`);
+    element.classList.add(`bangumi-rolling-${kind}`);
     return element;
   };
   const motion = {
-    duration: musicMotionDuration(460),
+    duration: bangumiMotionDuration(460),
     motionBlur: false,
     animated: false,
     pauseOffscreen: false,
@@ -89,8 +89,8 @@ export function setupMusicTextMotion(root: HTMLElement) {
     const reel = document.createElement("span");
     const plain = document.createElement("span");
     const measure = document.createElement("span");
-    reel.className = "music-rolling-text music-inline-reel";
-    plain.className = "music-inline-plain";
+    reel.className = "bangumi-rolling-text bangumi-inline-reel";
+    plain.className = "bangumi-inline-plain";
     plain.style.display = "none";
     plain.style.whiteSpace = "normal";
     plain.style.overflowWrap = "anywhere";
@@ -205,8 +205,8 @@ export function setupMusicTextMotion(root: HTMLElement) {
     meta: wrappingText("selection-meta"),
   };
   const controllers = [...Object.values(numbers), ...Object.values(texts)];
-  const unsubscribeSpeed = onMusicMotionSpeedChange(() => {
-    const duration = musicMotionDuration(460);
+  const unsubscribeSpeed = onBangumiMotionSpeedChange(() => {
+    const duration = bangumiMotionDuration(460);
     controllers.forEach((controller) => {
       controller.update({ duration });
     });

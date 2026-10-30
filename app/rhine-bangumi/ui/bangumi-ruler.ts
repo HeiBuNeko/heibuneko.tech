@@ -4,11 +4,11 @@ import {
   wrap,
 } from "../archive/archive-loop";
 import {
-  getMusicMotionSpeed,
-  onMusicMotionSpeedChange,
-} from "../motion/music-motion";
+  getBangumiMotionSpeed,
+  onBangumiMotionSpeedChange,
+} from "../motion/bangumi-motion";
 
-type MusicRulerItem = { index: number; title: string; id?: string };
+type BangumiRulerItem = { index: number; title: string; id?: string };
 type Spring = { value: number; velocity: number };
 type RulerSlot = {
   button: HTMLButtonElement;
@@ -77,10 +77,10 @@ function approach(
  * @param host 后处理所对应的 DOM 容器。
  * @returns 刻度更新与销毁句柄。
  */
-export function setupMusicRuler(host: HTMLElement) {
+export function setupBangumiRuler(host: HTMLElement) {
   const events = new AbortController();
   const reducedQuery = matchMedia("(prefers-reduced-motion: reduce)");
-  let items: MusicRulerItem[] = [];
+  let items: BangumiRulerItem[] = [];
   let groupKey = "";
   let selectedIndex = -1;
   let selectedOrdinal = 0;
@@ -92,13 +92,13 @@ export function setupMusicRuler(host: HTMLElement) {
   let lastFrame = 0;
   let motionTime = 0;
   let clockTime = performance.now();
-  let motionSpeed = getMusicMotionSpeed();
+  let motionSpeed = getBangumiMotionSpeed();
   const motionNow = (now: number) => {
     motionTime += Math.max(0, now - clockTime) * motionSpeed;
     clockTime = Math.max(clockTime, now);
     return motionTime;
   };
-  const unsubscribeSpeed = onMusicMotionSpeedChange((speed) => {
+  const unsubscribeSpeed = onBangumiMotionSpeedChange((speed) => {
     motionNow(performance.now());
     motionSpeed = speed;
   });
@@ -112,20 +112,20 @@ export function setupMusicRuler(host: HTMLElement) {
   const width = spring(0);
   let scrollTarget = 0;
 
-  host.classList.add("music-ruler");
+  host.classList.add("bangumi-ruler");
   host.setAttribute("role", "group");
   host.setAttribute("aria-label", "选择番剧");
 
   const slots: RulerSlot[] = Array.from({ length: POOL_SIZE }, (_, ordinal) => {
     const button = document.createElement("button");
     button.type = "button";
-    button.className = "music-ruler-slot";
+    button.className = "bangumi-ruler-slot";
     button.disabled = true;
     button.tabIndex = -1;
     button.dataset.visible = "false";
     button.setAttribute("aria-hidden", "true");
     const mark = document.createElement("span");
-    mark.className = "music-ruler-mark";
+    mark.className = "bangumi-ruler-mark";
     mark.setAttribute("aria-hidden", "true");
     button.appendChild(mark);
     const slot: RulerSlot = {
@@ -466,7 +466,7 @@ export function setupMusicRuler(host: HTMLElement) {
      * @param loop 刻度导航是否在当前列内循环。
      */
     update(
-      nextItems: MusicRulerItem[],
+      nextItems: BangumiRulerItem[],
       selected: number,
       reduceMotion: boolean,
       navigation?: ArchiveNavigation,

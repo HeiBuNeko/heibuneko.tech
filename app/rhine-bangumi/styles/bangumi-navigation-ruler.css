@@ -1,4 +1,4 @@
-#album-ticks.music-ruler {
+#album-ticks.bangumi-ruler {
   --tick-height: 30px;
   --tick-rest: 10px;
   --tick-hover: 22px;
@@ -14,7 +14,7 @@
   transition: none;
 }
 
-#album-ticks.music-ruler[data-overflow="true"] {
+#album-ticks.bangumi-ruler[data-overflow="true"] {
   -webkit-mask-image: linear-gradient(
     90deg,
     transparent,
@@ -31,7 +31,7 @@
   );
 }
 
-#album-ticks.music-ruler > button.music-ruler-slot {
+#album-ticks.bangumi-ruler > button.bangumi-ruler-slot {
   position: absolute;
   left: 0;
   top: 0;
@@ -45,21 +45,21 @@
   transition: none;
 }
 
-#album-ticks.music-ruler > button::before {
+#album-ticks.bangumi-ruler > button::before {
   content: none;
 }
 
-#album-ticks.music-ruler > button::after {
+#album-ticks.bangumi-ruler > button::after {
   content: "";
   position: absolute;
   inset: 0 calc(var(--tick-gap) / -2);
 }
 
-#album-ticks.music-ruler > button:disabled {
+#album-ticks.bangumi-ruler > button:disabled {
   pointer-events: none;
 }
 
-#album-ticks.music-ruler .music-ruler-mark {
+#album-ticks.bangumi-ruler .bangumi-ruler-mark {
   position: absolute;
   display: block;
   left: 0;
@@ -72,19 +72,19 @@
   pointer-events: none;
 }
 
-#album-ticks.music-ruler
+#album-ticks.bangumi-ruler
   > button:not(.active):is(:hover, :focus-visible)
-  .music-ruler-mark {
+  .bangumi-ruler-mark {
   background: var(--accent);
 }
 
-#album-ticks.music-ruler > button:focus-visible {
+#album-ticks.bangumi-ruler > button:focus-visible {
   outline: 1px solid var(--accent);
   outline-offset: 2px;
 }
 
 @media (max-width: 700px) {
-  #album-ticks.music-ruler {
+  #album-ticks.bangumi-ruler {
     --tick-height: 21px;
     --tick-rest: 8px;
     --tick-hover: 16px;

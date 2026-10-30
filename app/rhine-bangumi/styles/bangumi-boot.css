@@ -1,4 +1,4 @@
-.music-boot-overlay {
+.bangumi-boot-overlay {
   position: absolute;
   inset: 0;
   z-index: 900;
@@ -6,7 +6,7 @@
   background: transparent;
   outline: none;
 }
-.music-app .music-boot-skip {
+.bangumi-app .bangumi-boot-skip {
   position: absolute;
   left: 50%;
   bottom: max(16px, env(safe-area-inset-bottom));
@@ -25,26 +25,26 @@
   cursor: pointer;
   z-index: 2;
 }
-.music-boot-skip:hover,
-.music-boot-skip:focus-visible {
+.bangumi-boot-skip:hover,
+.bangumi-boot-skip:focus-visible {
   opacity: 1;
 }
-.music-boot-skip:focus-visible {
+.bangumi-boot-skip:focus-visible {
   outline: 1px solid var(--accent);
   outline-offset: 2px;
 }
-.music-opening {
+.bangumi-opening {
   position: absolute;
   inset: 0;
   color: var(--ink);
   pointer-events: none;
 }
-.music-opening-paper {
+.bangumi-opening-paper {
   position: absolute;
   inset: 0;
   background: var(--page-bg);
 }
-.music-opening-caption {
+.bangumi-opening-caption {
   position: absolute;
   left: 50%;
   top: 50%;

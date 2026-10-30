@@ -1,7 +1,7 @@
 import {
-  followMusicMotionSpeed,
-  getMusicMotionSpeed,
-} from "../motion/music-motion";
+  followBangumiMotionSpeed,
+  getBangumiMotionSpeed,
+} from "../motion/bangumi-motion";
 
 const enterEase = "cubic-bezier(0.22, 1, 0.36, 1)";
 const exitEase = "cubic-bezier(0.4, 0, 1, 1)";
@@ -58,7 +58,7 @@ export function createSurfaceTransition(
       enterDelay > 0
     ) {
       const revision = ++revisionCounter;
-      const animation = followMusicMotionSpeed(
+      const animation = followBangumiMotionSpeed(
         root.animate([], { duration: enterDelay }),
       );
       const start = (finishImmediately: boolean) => {
@@ -107,7 +107,7 @@ export function createSurfaceTransition(
     );
     exitRate = Math.max(exitRate, remaining / milliseconds);
     animations.forEach((animation) => {
-      animation.updatePlaybackRate(getMusicMotionSpeed() * exitRate);
+      animation.updatePlaybackRate(getBangumiMotionSpeed() * exitRate);
     });
   }
 
@@ -198,7 +198,7 @@ export function createSurfaceTransition(
       fill: "both",
     };
     const fades = fadeTargets.map((target, index) =>
-      followMusicMotionSpeed(
+      followBangumiMotionSpeed(
         target.animate(
           [{ opacity: opacities[index] }, { opacity: show ? 1 : 0 }],
           options,
@@ -209,7 +209,7 @@ export function createSurfaceTransition(
     animations.push(...fades);
     if (panel) {
       animations.push(
-        followMusicMotionSpeed(
+        followBangumiMotionSpeed(
           panel.animate(
             [
               { transform },

@@ -1,12 +1,12 @@
 import * as THREE from "three";
 import type { ArchiveRecord } from "../data/data";
-import type { MusicSelectionLighting } from "../rendering/music-lighting";
+import type { BangumiSelectionLighting } from "../rendering/bangumi-lighting";
 import {
+  BANGUMI_COVER,
   createAlbumPrintMaterial,
-  MUSIC_COVER,
-} from "../rendering/music-model";
+} from "../rendering/bangumi-model";
 
-export const COVER_SIZE = MUSIC_COVER;
+export const COVER_SIZE = BANGUMI_COVER;
 export type CoverImage = {
   source: CanvasImageSource;
   width: number;
@@ -144,7 +144,7 @@ export class CoverAtlas {
     count: number,
     maxTextureSize: number,
     anisotropy: number,
-    lighting?: MusicSelectionLighting,
+    lighting?: BangumiSelectionLighting,
   ) {
     this.columns = count > 512 ? 24 : 16;
     this.rows = Math.ceil(count / this.columns);

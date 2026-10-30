@@ -1,5 +1,5 @@
-import { musicIntroLightRow } from "../motion/music-intro-motion";
-import { MUSIC_COLUMN_SPACING } from "./music-model";
+import { bangumiIntroLightRow } from "../motion/bangumi-intro-motion";
+import { BANGUMI_COLUMN_SPACING } from "./bangumi-model";
 
 export type RowLightingFrame = {
   row: number;
@@ -54,11 +54,11 @@ export function followRowLight(
   return state.value;
 }
 
-export const introRowOffset = musicIntroLightRow;
+export const introRowOffset = bangumiIntroLightRow;
 
 export const ROW_LIGHTING = {
   rowSpacing: 0.62,
-  laneSpacing: MUSIC_COLUMN_SPACING,
+  laneSpacing: BANGUMI_COLUMN_SPACING,
   laneRadius: 27,
   gaussianHalfMaximum: Math.LN2,
 } as const;
@@ -71,12 +71,12 @@ export const DEFAULT_LIGHTING_PRESET = {
 } as const;
 
 export const ROW_LIGHTING_GLSL = `
-  uniform vec3 musicRowColumn;
-  uniform vec3 musicRowSettings;
-  uniform float musicRowDetail;
-  float musicRowField(vec3 origin, vec3 column) {
-    float row = (origin.z - column.z - musicRowSettings.z * ${ROW_LIGHTING.rowSpacing}) /
-      (0.5 * musicRowSettings.y * ${ROW_LIGHTING.rowSpacing});
+  uniform vec3 bangumiRowColumn;
+  uniform vec3 bangumiRowSettings;
+  uniform float bangumiRowDetail;
+  float bangumiRowField(vec3 origin, vec3 column) {
+    float row = (origin.z - column.z - bangumiRowSettings.z * ${ROW_LIGHTING.rowSpacing}) /
+      (0.5 * bangumiRowSettings.y * ${ROW_LIGHTING.rowSpacing});
     float lane = (origin.x - column.x) / ${ROW_LIGHTING.laneRadius.toFixed(1)};
     float lane2 = lane * lane;
     return exp(-${ROW_LIGHTING.gaussianHalfMaximum} * row * row) *

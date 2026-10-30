@@ -2,14 +2,14 @@ import * as THREE from "three";
 import { damp, type Spring, smooth } from "./motion";
 import { isPortraitViewport } from "./viewport-layout";
 
-export function musicArchiveOffset(width: number, height: number) {
+export function bangumiArchiveOffset(width: number, height: number) {
   if (isPortraitViewport(width, height)) return { x: 0, y: 0 };
   const aspect = Math.max(1, width) / Math.max(1, height);
   const wide = smooth((aspect - 16 / 9) / (21 / 9 - 16 / 9));
   return { x: 0.035 * wide, y: 0.08 + 0.02 * wide };
 }
 
-export function musicExtractionAnchor(shot: number) {
+export function bangumiExtractionAnchor(shot: number) {
   const extraction = smooth((shot - 27.3) / 1.25);
   return {
     x: 518 - 98 * extraction,
@@ -27,7 +27,7 @@ export function musicExtractionAnchor(shot: number) {
  * @param arrayElevation 阵列当前的俯仰角。
  * @returns 当前时间的镜头目标姿态。
  */
-export function musicCinematicPose(
+export function bangumiCinematicPose(
   shot: number,
   arrayYaw = 59,
   arrayElevation = 19,
@@ -43,7 +43,7 @@ export function musicCinematicPose(
   };
 }
 
-export type MusicPresentationPhase =
+export type BangumiPresentationPhase =
   | "hidden"
   | "returning-array"
   | "archive"
@@ -52,7 +52,7 @@ export type MusicPresentationPhase =
   | "returning-center";
 
 type ArchiveTracks = "rail" | "column" | "shoulder" | "lane";
-export function musicArchiveTracksSettled(
+export function bangumiArchiveTracksSettled(
   tracks: Record<ArchiveTracks, Spring>,
   targets: Record<ArchiveTracks, number>,
 ) {
@@ -68,7 +68,7 @@ export function musicArchiveTracksSettled(
  *
  * 预览、详情与归位使用同一过渡状态。
  */
-export class MusicPlacementMotion {
+export class BangumiPlacementMotion {
   value = 0;
   velocity = 0;
   acceleration = 0;
@@ -141,8 +141,8 @@ export class MusicPlacementMotion {
  *
  * 记录详情是否就绪，并在手动旋转的盒体归位后放行阶段切换。
  */
-export class MusicPresentation {
-  phase: MusicPresentationPhase = "hidden";
+export class BangumiPresentation {
+  phase: BangumiPresentationPhase = "hidden";
   private settledFor = 0;
 
   /**
@@ -227,7 +227,7 @@ export class MusicPresentation {
  *
  * 记录相机当前位置和速度，在开场结束后衔接普通浏览。
  */
-export class MusicCameraMotion {
+export class BangumiCameraMotion {
   private positionVelocity = new THREE.Vector3();
   private aimVelocity = new THREE.Vector3();
   private lastPosition = new THREE.Vector3();

@@ -55,7 +55,7 @@ export function baselineSelectionWave(distance: number, age: number) {
   );
 }
 
-export function musicSelectionWave(distance: number, age: number) {
+export function bangumiSelectionWave(distance: number, age: number) {
   if (age < 0 || age > 3.2) return 0;
   return (
     0.32 *

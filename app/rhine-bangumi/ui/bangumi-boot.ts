@@ -1,18 +1,18 @@
-import "../styles/music-boot.css";
-import { musicIntroFrame } from "../motion/music-intro-motion";
-import { followMusicMotionSpeed } from "../motion/music-motion";
+import "../styles/bangumi-boot.css";
+import { bangumiIntroFrame } from "../motion/bangumi-intro-motion";
+import { followBangumiMotionSpeed } from "../motion/bangumi-motion";
 import {
-  MUSIC_BOOT_END_TIME,
-  MUSIC_BOOT_SCENE_REVEAL_TIME,
-  MUSIC_BOOT_START_TIME,
-  MusicBootFrameClock,
-  musicBootSceneTime,
-} from "./music-boot-timing";
+  BANGUMI_BOOT_END_TIME,
+  BANGUMI_BOOT_SCENE_REVEAL_TIME,
+  BANGUMI_BOOT_START_TIME,
+  BangumiBootFrameClock,
+  bangumiBootSceneTime,
+} from "./bangumi-boot-timing";
 import {
-  MUSIC_OPENING_CAPTION,
-  MusicOpening,
-  musicOpeningFrame,
-} from "./music-opening";
+  BANGUMI_OPENING_CAPTION,
+  BangumiOpening,
+  bangumiOpeningFrame,
+} from "./bangumi-opening";
 
 const REVEAL_DURATION = 720;
 const REVEAL_EASE = "cubic-bezier(0.22, 1, 0.36, 1)";
@@ -20,18 +20,18 @@ const ease = (value: number) => {
   const t = Math.max(0, Math.min(1, value));
   return t * t * (3 - 2 * t);
 };
-export interface MusicBootFrame {
+export interface BangumiBootFrame {
   cinema: {
     reveal: number;
     lift: number;
     time: number;
-    musicIntro: true;
+    bangumiIntro: true;
   };
   renderScene: boolean;
   phase: "slogan" | "array" | "select";
   appTime: number;
 }
-export interface MusicBootOptions {
+export interface BangumiBootOptions {
   onStart?: () => void;
   onComplete?: (reason: "complete" | "skip") => void;
   reduced?: boolean | (() => boolean);
@@ -49,11 +49,11 @@ type SavedSibling = {
  *
  * 控制开场画面、跳过操作与正式场景的交接，卸载时释放动画和监听。
  */
-export class MusicBoot {
+export class BangumiBoot {
   readonly root: HTMLElement;
   private readonly skipButton: HTMLButtonElement;
-  private readonly opening: MusicOpening;
-  private readonly frameClock = new MusicBootFrameClock();
+  private readonly opening: BangumiOpening;
+  private readonly frameClock = new BangumiBootFrameClock();
   private running = false;
   private revealing = false;
   private revealRevision = 0;
@@ -74,19 +74,22 @@ export class MusicBoot {
    */
   constructor(
     private parent: HTMLElement,
-    private options: MusicBootOptions = {},
+    private options: BangumiBootOptions = {},
   ) {
     this.root = document.createElement("section");
-    this.root.className = "music-boot-overlay";
+    this.root.className = "bangumi-boot-overlay";
     this.root.hidden = true;
     this.root.setAttribute("role", "dialog");
     this.root.setAttribute("aria-modal", "true");
-    this.root.setAttribute("aria-label", `番剧开场：${MUSIC_OPENING_CAPTION}`);
+    this.root.setAttribute(
+      "aria-label",
+      `番剧开场：${BANGUMI_OPENING_CAPTION}`,
+    );
     this.root.tabIndex = -1;
-    this.opening = new MusicOpening(this.root);
+    this.opening = new BangumiOpening(this.root);
     this.skipButton = document.createElement("button");
     this.skipButton.type = "button";
-    this.skipButton.className = "music-boot-skip";
+    this.skipButton.className = "bangumi-boot-skip";
     this.skipButton.textContent = "跳过进场";
     this.root.appendChild(this.skipButton);
     this.parent.appendChild(this.root);
@@ -149,14 +152,17 @@ export class MusicBoot {
     }
     this.running = true;
     this.endpointRendered = false;
-    this.parent.dataset.musicBoot = "running";
-    const startTime = MUSIC_BOOT_START_TIME;
+    this.parent.dataset.bangumiBoot = "running";
+    const startTime = BANGUMI_BOOT_START_TIME;
     this.frameClock.reset(nowSeconds, startTime);
     this.opening.update(0);
     this.root.hidden = false;
     this.root.dataset.phase = "slogan";
     this.root.dataset.appTime = String(startTime);
-    this.root.setAttribute("aria-label", `番剧开场：${MUSIC_OPENING_CAPTION}`);
+    this.root.setAttribute(
+      "aria-label",
+      `番剧开场：${BANGUMI_OPENING_CAPTION}`,
+    );
     this.skipButton.hidden = false;
     this.options.onStart?.();
     const reduced =
@@ -181,7 +187,7 @@ export class MusicBoot {
    * @param nowSeconds 当前时间，单位为秒。
    * @returns 本帧的开场控制状态。
    */
-  update(nowSeconds: number): MusicBootFrame | undefined {
+  update(nowSeconds: number): BangumiBootFrame | undefined {
     if (this.revealing && this.isReduced()) this.completeReveal();
     if (!this.running || this.disposed || !Number.isFinite(nowSeconds)) return;
     if (this.isReduced()) {
@@ -193,24 +199,24 @@ export class MusicBoot {
       return;
     }
     const appTime = this.frameClock.update(nowSeconds);
-    this.endpointRendered = appTime === MUSIC_BOOT_END_TIME;
+    this.endpointRendered = appTime === BANGUMI_BOOT_END_TIME;
     this.opening.update(appTime);
-    const sceneTime = musicBootSceneTime(appTime);
+    const sceneTime = bangumiBootSceneTime(appTime);
     const phase =
-      musicIntroFrame(sceneTime) >= 89
+      bangumiIntroFrame(sceneTime) >= 89
         ? "select"
-        : musicOpeningFrame(appTime).phase;
+        : bangumiOpeningFrame(appTime).phase;
     this.root.dataset.phase = phase;
     this.root.dataset.appTime = String(appTime);
     return {
       appTime,
       phase,
-      renderScene: appTime >= MUSIC_BOOT_SCENE_REVEAL_TIME,
+      renderScene: appTime >= BANGUMI_BOOT_SCENE_REVEAL_TIME,
       cinema: {
         reveal: ease((sceneTime - 21.9) / 0.13),
         lift: 0,
         time: sceneTime,
-        musicIntro: true,
+        bangumiIntro: true,
       },
     };
   }
@@ -241,7 +247,7 @@ export class MusicBoot {
         : this.opener;
     if (!notify || this.isReduced()) {
       this.siblings = [];
-      this.parent.dataset.musicBoot = "done";
+      this.parent.dataset.bangumiBoot = "done";
       if (notify) this.restoreFocus();
       return;
     }
@@ -251,7 +257,7 @@ export class MusicBoot {
       sibling.node.inert = true;
     }
     this.revealing = true;
-    this.parent.dataset.musicBoot = "revealing";
+    this.parent.dataset.bangumiBoot = "revealing";
     this.root.hidden = false;
     this.skipButton.hidden = true;
     this.root.setAttribute("aria-label", "正在显示番剧档案");
@@ -269,7 +275,7 @@ export class MusicBoot {
       const node = this.parent.querySelector<HTMLElement>(selector);
       if (!node || node.hidden) return;
       this.revealAnimations.push(
-        followMusicMotionSpeed(
+        followBangumiMotionSpeed(
           node.animate(
             [{ opacity: 0 }, { opacity: getComputedStyle(node).opacity }],
             {
@@ -282,26 +288,26 @@ export class MusicBoot {
         ),
       );
     };
-    fade(".music-vignette");
-    fade(".music-header");
-    fade(".music-view-toggle");
+    fade(".bangumi-vignette");
+    fade(".bangumi-header");
+    fade(".bangumi-view-toggle");
     fade(".library-status", 45);
-    fade(".music-bottomline", 90);
-    fade(".music-empty", 60);
+    fade(".bangumi-bottomline", 90);
+    fade(".bangumi-empty", 60);
     for (const selector of [
-      ".music-counter",
+      ".bangumi-counter",
       ".album-stepper",
       ".genre-stepper",
     ])
       fade(selector, 110);
     for (const [selector, delay] of [
       [".album-callout", 60],
-      [".music-keyhint", 140],
+      [".bangumi-keyhint", 140],
     ] as const) {
       const node = this.parent.querySelector<HTMLElement>(selector);
       if (!node) continue;
       this.revealAnimations.push(
-        followMusicMotionSpeed(
+        followBangumiMotionSpeed(
           node.animate(
             [
               { translate: "0 8px" },
@@ -345,7 +351,7 @@ export class MusicBoot {
     this.revealAnimations = [];
     this.revealing = false;
     this.root.hidden = true;
-    this.parent.dataset.musicBoot = "done";
+    this.parent.dataset.bangumiBoot = "done";
     for (const { node, inert } of this.siblings) node.inert = inert;
     this.siblings = [];
     if (restoreFocus) this.restoreFocus();

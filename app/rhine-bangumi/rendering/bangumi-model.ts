@@ -1,26 +1,26 @@
 import * as THREE from "three";
 
-export const MUSIC_MODEL = {
+export const BANGUMI_MODEL = {
   width: 3.996,
   height: 3.35,
   depth: 0.14,
   center: { x: 0, y: 1.85, z: 0 },
 } as const;
 
-export const MUSIC_COLUMN_GAP = 0.75;
-export const MUSIC_COLUMN_SPACING = MUSIC_MODEL.width + MUSIC_COLUMN_GAP;
+export const BANGUMI_COLUMN_GAP = 0.75;
+export const BANGUMI_COLUMN_SPACING = BANGUMI_MODEL.width + BANGUMI_COLUMN_GAP;
 
 const bindingWidth = 4.45 * (0.26 / 4.3);
-export const MUSIC_CASE_WIDTHS = {
+export const BANGUMI_CASE_WIDTHS = {
   spine: bindingWidth,
-  glass: MUSIC_MODEL.width - bindingWidth,
+  glass: BANGUMI_MODEL.width - bindingWidth,
 } as const;
 
-export const MUSIC_COVER = {
+export const BANGUMI_COVER = {
   width: 2.98,
   height: 2.98,
   x: 0.14,
-  y: MUSIC_MODEL.center.y,
+  y: BANGUMI_MODEL.center.y,
   z: 0.027,
 } as const;
 
@@ -28,7 +28,7 @@ type GlassFinish = Pick<
   THREE.MeshPhysicalMaterial,
   "transmission" | "thickness" | "roughness" | "attenuationDistance"
 >;
-const MUSIC_GLASS_FINISH: Record<string, GlassFinish> = {
+const BANGUMI_GLASS_FINISH: Record<string, GlassFinish> = {
   Frosted_Polymer: {
     transmission: 0.96,
     thickness: 0.018,
@@ -57,9 +57,9 @@ const MUSIC_GLASS_FINISH: Record<string, GlassFinish> = {
  * @param geometry 需要计算边界的盒体几何体。
  * @returns 原几何体实例。
  */
-export function normalizeMusicGeometry(geometry: THREE.BufferGeometry) {
-  if (geometry.userData.musicDimensions) return geometry;
-  geometry.userData.musicDimensions = true;
+export function normalizeBangumiGeometry(geometry: THREE.BufferGeometry) {
+  if (geometry.userData.bangumiDimensions) return geometry;
+  geometry.userData.bangumiDimensions = true;
   geometry.computeBoundingBox();
   geometry.computeBoundingSphere();
   return geometry;
@@ -73,7 +73,7 @@ export function normalizeMusicGeometry(geometry: THREE.BufferGeometry) {
  * @param surface 当前盒体表面的材质名称。
  * @param material 需要配置的 Three.js 材质。
  */
-export function configureMusicGlass(
+export function configureBangumiGlass(
   surface: string,
   material: THREE.MeshPhysicalMaterial,
 ) {
@@ -86,14 +86,15 @@ export function configureMusicGlass(
   material.clearcoat = surface === "Ivory_Edges" ? 0.16 : 0.08;
   material.clearcoatRoughness = surface === "Ivory_Edges" ? 0.2 : 0.38;
   material.side = THREE.FrontSide;
-  const finish = MUSIC_GLASS_FINISH[surface];
+  const finish = BANGUMI_GLASS_FINISH[surface];
   if (finish) Object.assign(material, finish);
   const compile = material.onBeforeCompile;
   material.onBeforeCompile = (shader, renderer) => {
     compile.call(material, shader, renderer);
-    shadeMusicGlass(shader, surface);
+    shadeBangumiGlass(shader, surface);
   };
-  material.customProgramCacheKey = () => `music-case-v4-zoned-frost-${surface}`;
+  material.customProgramCacheKey = () =>
+    `bangumi-case-v4-zoned-frost-${surface}`;
 }
 
 /**
@@ -104,25 +105,25 @@ export function configureMusicGlass(
  * @param shader 待注入 uniform 或片段的 Three.js Shader。
  * @param surface 当前盒体表面的材质名称。
  */
-export function shadeMusicGlass(
+export function shadeBangumiGlass(
   shader: THREE.WebGLProgramParametersWithUniforms,
   surface: string,
 ) {
   if (
     surface !== "Frosted_Polymer" ||
-    shader.fragmentShader.includes("musicThinLid")
+    shader.fragmentShader.includes("bangumiThinLid")
   )
     return;
-  shader.vertexShader = `varying vec2 vMusicLidPosition;\n${shader.vertexShader}`;
+  shader.vertexShader = `varying vec2 vBangumiLidPosition;\n${shader.vertexShader}`;
   shader.vertexShader = shader.vertexShader.replace(
     "#include <begin_vertex>",
-    "#include <begin_vertex>\nvMusicLidPosition = position.xy;",
+    "#include <begin_vertex>\nvBangumiLidPosition = position.xy;",
   );
   shader.fragmentShader = `
-    varying vec2 vMusicLidPosition;
-    float musicPaperProximity() {
-      vec2 paperEdge = abs(vMusicLidPosition - vec2(${MUSIC_COVER.x}, ${MUSIC_COVER.y}))
-        - vec2(${MUSIC_COVER.width / 2}, ${MUSIC_COVER.height / 2});
+    varying vec2 vBangumiLidPosition;
+    float bangumiPaperProximity() {
+      vec2 paperEdge = abs(vBangumiLidPosition - vec2(${BANGUMI_COVER.x}, ${BANGUMI_COVER.y}))
+        - vec2(${BANGUMI_COVER.width / 2}, ${BANGUMI_COVER.height / 2});
       return 1.0 - smoothstep(0.015, 0.15, max(paperEdge.x, paperEdge.y));
     }
   ${shader.fragmentShader}`;
@@ -130,8 +131,8 @@ export function shadeMusicGlass(
     "#include <transmission_pars_fragment>",
     THREE.ShaderChunk.transmission_pars_fragment.replace(
       "float lod = log2( transmissionSamplerSize.x ) * applyIorToRoughness( roughness, ior );",
-      `// musicThinLid: preserve nearby paper; diffuse the uncovered margin.
-      float paperProximity = musicPaperProximity();
+      `// bangumiThinLid: preserve nearby paper; diffuse the uncovered margin.
+      float paperProximity = bangumiPaperProximity();
       float lod = log2( transmissionSamplerSize.x ) * applyIorToRoughness( roughness, ior )
         * mix(1.0, 0.16, paperProximity);`,
     ),
@@ -146,12 +147,12 @@ export function shadeMusicGlass(
  * @param material 需要配置的 Three.js 材质。
  * @param clarity 封面当前的清晰度目标。
  */
-export function setMusicGlassClarity(
+export function setBangumiGlassClarity(
   material: THREE.MeshPhysicalMaterial,
   clarity: number,
 ) {
   material.roughness = THREE.MathUtils.lerp(
-    MUSIC_GLASS_FINISH.Frosted_Polymer.roughness,
+    BANGUMI_GLASS_FINISH.Frosted_Polymer.roughness,
     0.27,
     THREE.MathUtils.clamp(clarity, 0, 1),
   );

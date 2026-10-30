@@ -3,8 +3,8 @@
 import { useState } from "react";
 import { BangumiCanvas } from "./rendering/scene-runtime";
 import "@kitlangton/rolling-number/styles.css";
-import "./styles/music-navigation-ruler.css";
-import "./styles/music-overview.css";
+import "./styles/bangumi-navigation-ruler.css";
+import "./styles/bangumi-overview.css";
 import "./styles/stage.css";
 
 type BangumiProps = { active: boolean };
@@ -27,7 +27,7 @@ export const Bangumi = ({ active }: BangumiProps) => {
       ref={setRoot}
       aria-hidden={!active}
       inert={!active}
-      className={`bangumi-stage music-app absolute inset-0 z-0${active ? "" : "pointer-events-none invisible"}`}
+      className={`bangumi-stage bangumi-app absolute inset-0 z-0${active ? "" : "pointer-events-none invisible"}`}
     >
       <div ref={setCanvasHost} className="three-scene">
         {root && canvasHost && (

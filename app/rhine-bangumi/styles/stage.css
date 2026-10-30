@@ -5,7 +5,7 @@
   --accent: #d9ad7d;
   --page-bg: #08121f;
   --veil: rgba(10, 21, 37, 0.75);
-  --music-page-edge: clamp(20px, 2.5vw, 48px);
+  --bangumi-page-edge: clamp(20px, 2.5vw, 48px);
   isolation: isolate;
   overflow: hidden;
   background: var(--page-bg);
@@ -53,7 +53,7 @@
 .bangumi-interface a {
   pointer-events: auto;
 }
-.bangumi-interface .music-vignette {
+.bangumi-interface .bangumi-vignette {
   position: absolute;
   inset: 0;
   z-index: 1;
@@ -65,40 +65,40 @@
     var(--veil)
   );
 }
-.bangumi-interface .music-header {
+.bangumi-interface .bangumi-header {
   position: absolute;
   z-index: 6;
-  top: var(--music-page-edge);
-  left: var(--music-page-edge);
+  top: var(--bangumi-page-edge);
+  left: var(--bangumi-page-edge);
 }
-.bangumi-interface .music-brand {
+.bangumi-interface .bangumi-brand {
   display: flex;
   flex-direction: column;
   line-height: 1.55;
 }
-.bangumi-interface .music-brand strong {
+.bangumi-interface .bangumi-brand strong {
   font-size: clamp(23px, 2vw, 31px);
   letter-spacing: 1px;
   line-height: 1;
 }
-.bangumi-interface .music-brand span {
+.bangumi-interface .bangumi-brand span {
   margin-top: 8px;
   font-size: 9px;
   letter-spacing: 1.8px;
 }
-.bangumi-interface .music-brand i {
+.bangumi-interface .bangumi-brand i {
   margin: 0 5px;
   color: var(--muted);
   font-style: normal;
 }
 
-.bangumi-interface .music-browse,
-.bangumi-interface .music-detail {
+.bangumi-interface .bangumi-browse,
+.bangumi-interface .bangumi-detail {
   position: absolute;
   inset: 0;
   z-index: 3;
 }
-.bangumi-interface .music-browse-veil {
+.bangumi-interface .bangumi-browse-veil {
   position: absolute;
   inset: 0;
   background: linear-gradient(
@@ -114,7 +114,7 @@
   top: clamp(155px, 30vh, 330px);
   bottom: 150px;
   left: 57%;
-  right: var(--music-page-edge);
+  right: var(--bangumi-page-edge);
   display: flex;
   flex-direction: column;
   max-width: 520px;
@@ -123,13 +123,13 @@
 .bangumi-interface .album-callout > * {
   flex-shrink: 0;
 }
-.bangumi-interface .music-eyebrow {
+.bangumi-interface .bangumi-eyebrow {
   margin: 0;
   font-size: 9px;
   letter-spacing: 1.5px;
   line-height: 1.7;
 }
-.bangumi-interface .music-eyebrow > span {
+.bangumi-interface .bangumi-eyebrow > span {
   margin: 0 4px;
 }
 .bangumi-interface .selection-rule {
@@ -189,34 +189,34 @@
   color: var(--accent);
 }
 
-.bangumi-interface .music-navigation {
+.bangumi-interface .bangumi-navigation {
   position: absolute;
   bottom: max(60px, calc(env(safe-area-inset-bottom) + 45px));
-  left: var(--music-page-edge);
-  right: var(--music-page-edge);
+  left: var(--bangumi-page-edge);
+  right: var(--bangumi-page-edge);
   display: grid;
   grid-template-columns: 210px 1fr 1.1fr;
   align-items: center;
   gap: 40px;
   z-index: 4;
 }
-.bangumi-interface .music-counter > div {
+.bangumi-interface .bangumi-counter > div {
   display: flex;
   align-items: baseline;
   gap: 8px;
   margin-top: 6px;
 }
-.bangumi-interface .music-counter b {
+.bangumi-interface .bangumi-counter b {
   font-size: 50px;
   line-height: 1;
   font-weight: 300;
   letter-spacing: -3px;
 }
-.bangumi-interface .music-counter > div > span {
+.bangumi-interface .bangumi-counter > div > span {
   font-size: 12px;
   color: var(--muted);
 }
-.bangumi-interface .music-counter i {
+.bangumi-interface .bangumi-counter i {
   margin-left: 8px;
   font-style: normal;
   letter-spacing: 1px;
@@ -255,36 +255,36 @@
   letter-spacing: 1px;
   white-space: nowrap;
 }
-.bangumi-interface .music-keyhint {
+.bangumi-interface .bangumi-keyhint {
   position: absolute;
   z-index: 3;
-  right: var(--music-page-edge);
+  right: var(--bangumi-page-edge);
   bottom: 37px;
-  left: var(--music-page-edge);
+  left: var(--bangumi-page-edge);
   color: var(--muted);
   text-align: center;
   font-size: 8px;
   letter-spacing: 0.5px;
 }
-.bangumi-stage .bangumi-interface .music-keyhint span {
+.bangumi-stage .bangumi-interface .bangumi-keyhint span {
   margin: 0 8px;
   opacity: 0.6;
 }
 
-.bangumi-interface .music-detail {
+.bangumi-interface .bangumi-detail {
   pointer-events: none;
 }
-.bangumi-interface .music-back {
+.bangumi-interface .bangumi-back {
   position: absolute;
   top: 112px;
-  left: var(--music-page-edge);
+  left: var(--bangumi-page-edge);
   display: flex;
   align-items: center;
   gap: 25px;
   font-size: 10px;
   letter-spacing: 0.4px;
 }
-.bangumi-interface .music-back kbd {
+.bangumi-interface .bangumi-back kbd {
   padding: 1px 3px;
   border: 1px solid var(--line);
   color: var(--muted);
@@ -292,7 +292,7 @@
 }
 .bangumi-interface .card-caption {
   position: absolute;
-  left: var(--music-page-edge);
+  left: var(--bangumi-page-edge);
   bottom: 82px;
   display: flex;
   flex-direction: column;
@@ -309,7 +309,7 @@
 .bangumi-interface #album-detail-content {
   position: absolute;
   top: 150px;
-  right: var(--music-page-edge);
+  right: var(--bangumi-page-edge);
   bottom: 52px;
   left: 60%;
   overflow: auto;
@@ -412,25 +412,25 @@
   font-size: 10px;
 }
 
-.bangumi-stage .music-rolling-text,
-.bangumi-stage .music-rolling-number {
+.bangumi-stage .bangumi-rolling-text,
+.bangumi-stage .bangumi-rolling-number {
   --rn-blur: 0;
   --rn-edge-fade: 0.08em;
 }
-.bangumi-stage .music-title-layout {
+.bangumi-stage .bangumi-title-layout {
   display: block;
   height: 0;
   visibility: hidden;
   pointer-events: none;
 }
-.bangumi-stage .music-title-rolling {
+.bangumi-stage .bangumi-title-rolling {
   position: absolute;
   inset: 0;
   overflow: clip;
   overflow-clip-margin: 0.08em;
   pointer-events: none;
 }
-.bangumi-stage .album-callout h1.music-title-probe {
+.bangumi-stage .album-callout h1.bangumi-title-probe {
   --album-title-size: initial;
   position: absolute;
   top: 0;
@@ -442,13 +442,13 @@
   contain: layout style paint;
   visibility: hidden;
 }
-.bangumi-stage .music-title-candidate {
+.bangumi-stage .bangumi-title-candidate {
   position: absolute;
   inset: 0 0 auto;
   display: block;
   line-height: inherit;
 }
-.bangumi-stage .music-title-slot {
+.bangumi-stage .bangumi-title-slot {
   position: absolute;
   top: 0;
   left: 0;
@@ -464,22 +464,22 @@
     transparent
   );
 }
-.bangumi-stage .music-title-wheel {
+.bangumi-stage .bangumi-title-wheel {
   position: absolute;
   top: 0;
   left: 0.15em;
   width: calc(100% - 0.3em);
   height: 100%;
 }
-.bangumi-stage .music-title-face {
+.bangumi-stage .bangumi-title-face {
   position: absolute;
   inset: 0;
   display: block;
   white-space: pre;
   clip-path: inset(0 -0.15em);
 }
-.bangumi-stage #selection-total.music-rolling-number,
-.bangumi-stage #genre-total.music-rolling-number {
+.bangumi-stage #selection-total.bangumi-rolling-number,
+.bangumi-stage #genre-total.bangumi-rolling-number {
   display: inline-flex;
   vertical-align: baseline;
   font-variant-numeric: tabular-nums;
@@ -530,7 +530,7 @@
   .bangumi-interface .album-callout {
     top: 32%;
   }
-  .bangumi-interface .music-detail #album-detail-content {
+  .bangumi-interface .bangumi-detail #album-detail-content {
     top: 180px;
   }
 }
@@ -538,11 +538,11 @@
   .bangumi-interface .album-callout {
     top: clamp(132px, 28vh, 240px);
   }
-  .bangumi-interface .music-navigation {
+  .bangumi-interface .bangumi-navigation {
     grid-template-columns: 145px 1fr 1fr;
     gap: 20px;
   }
-  .bangumi-interface .music-counter b {
+  .bangumi-interface .bangumi-counter b {
     font-size: 42px;
   }
   .bangumi-interface .genre-stepper {
@@ -556,7 +556,7 @@
     right: 4%;
     top: 132px;
   }
-  .bangumi-interface .music-back {
+  .bangumi-interface .bangumi-back {
     top: 96px;
   }
 }
@@ -577,18 +577,18 @@
   }
 }
 @media (max-width: 700px) {
-  .bangumi-interface .music-header {
+  .bangumi-interface .bangumi-header {
     top: 22px;
     left: 20px;
   }
-  .bangumi-interface .music-brand strong {
+  .bangumi-interface .bangumi-brand strong {
     font-size: 22px;
   }
-  .bangumi-interface .music-brand span {
+  .bangumi-interface .bangumi-brand span {
     font-size: 7px;
     letter-spacing: 1px;
   }
-  .bangumi-interface .music-browse-veil {
+  .bangumi-interface .bangumi-browse-veil {
     background: linear-gradient(
       180deg,
       transparent 29%,
@@ -611,7 +611,7 @@
     font-size: var(--album-title-size, 25px);
     margin-bottom: 9px;
   }
-  .bangumi-interface .music-eyebrow {
+  .bangumi-interface .bangumi-eyebrow {
     font-size: 7px;
   }
   .bangumi-interface .selection-rule {
@@ -631,24 +631,24 @@
     padding-bottom: 7px;
     font-size: 11px;
   }
-  .bangumi-interface .music-navigation {
+  .bangumi-interface .bangumi-navigation {
     left: 20px;
     right: 20px;
     bottom: 53px;
     grid-template-columns: 74px 1fr 1fr;
     gap: 12px;
   }
-  .bangumi-interface .music-counter b {
+  .bangumi-interface .bangumi-counter b {
     font-size: 34px;
   }
-  .bangumi-interface .music-counter .music-eyebrow {
+  .bangumi-interface .bangumi-counter .bangumi-eyebrow {
     font-size: 6px;
     letter-spacing: 1px;
   }
-  .bangumi-interface .music-counter > div > span {
+  .bangumi-interface .bangumi-counter > div > span {
     font-size: 9px;
   }
-  .bangumi-interface .music-counter i {
+  .bangumi-interface .bangumi-counter i {
     margin-left: 0;
   }
   .bangumi-interface .album-stepper {
@@ -670,10 +670,10 @@
   .bangumi-interface #genre-name {
     font-size: 10px;
   }
-  .bangumi-interface .music-keyhint {
+  .bangumi-interface .bangumi-keyhint {
     display: none;
   }
-  .bangumi-interface .music-back {
+  .bangumi-interface .bangumi-back {
     top: 102px;
     left: 20px;
   }

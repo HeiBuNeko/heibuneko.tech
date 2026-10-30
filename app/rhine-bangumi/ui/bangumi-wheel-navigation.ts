@@ -1,4 +1,4 @@
-export type MusicWheelInput = Pick<
+export type BangumiWheelInput = Pick<
   WheelEvent,
   "deltaMode" | "deltaX" | "deltaY" | "ctrlKey" | "shiftKey"
 >;
@@ -16,7 +16,10 @@ const GESTURE_GAP_MS = 200;
  * @param pageHeight 页面可滚动区域的高度。
  * @returns 归一化后的滚动增量。
  */
-export function musicWheelDelta(event: MusicWheelInput, pageHeight: number) {
+export function bangumiWheelDelta(
+  event: BangumiWheelInput,
+  pageHeight: number,
+) {
   const unit =
     event.deltaMode === 1
       ? 16
@@ -39,7 +42,7 @@ export function musicWheelDelta(event: MusicWheelInput, pageHeight: number) {
  *
  * 按当前月份列维护手势上下文，防止残余滚动跨列触发。
  */
-export class MusicWheelSteps {
+export class BangumiWheelSteps {
   private remainder = 0;
   private direction = 0;
   private lastTime = -Infinity;
@@ -80,7 +83,7 @@ export class MusicWheelSteps {
   }
 }
 
-type MusicWheelOptions = {
+type BangumiWheelOptions = {
   enabled: () => boolean;
   navigate: (direction: number) => void;
   context?: () => string | number;
@@ -96,8 +99,8 @@ const NATIVE_WHEEL_TARGETS = [
   "dialog",
   "[role=dialog]",
   "[role=slider]",
-  ".music-panel-scrim",
-  "#music-detail",
+  ".bangumi-panel-scrim",
+  "#bangumi-detail",
 ].join(",");
 
 /**
@@ -134,11 +137,11 @@ function keepsNativeWheel(target: EventTarget | null, stage: HTMLElement) {
  * @param options 场景或界面的初始化选项。
  * @returns 滚轮监听的销毁句柄。
  */
-export function mountMusicWheelNavigation(
+export function mountBangumiWheelNavigation(
   stage: HTMLElement,
-  options: MusicWheelOptions,
+  options: BangumiWheelOptions,
 ) {
-  const steps = new MusicWheelSteps();
+  const steps = new BangumiWheelSteps();
   let context: string | number | undefined;
   const reset = () => steps.reset();
   /**
@@ -157,7 +160,7 @@ export function mountMusicWheelNavigation(
       reset();
       return;
     }
-    const delta = musicWheelDelta(event, stage.clientHeight);
+    const delta = bangumiWheelDelta(event, stage.clientHeight);
     if (!delta) {
       reset();
       return;

@@ -1,5 +1,5 @@
 import type { ArchiveNavigation } from "../archive/archive-loop";
-import type { OverviewColumn } from "../archive/music-overview";
+import type { OverviewColumn } from "../archive/bangumi-overview";
 import {
   archiveColumns,
   columnFiles,
@@ -7,10 +7,10 @@ import {
   records,
 } from "../data/data";
 import { setupBangumiOverview } from "./bangumi-overview";
+import { setupBangumiRuler } from "./bangumi-ruler";
+import { setupBangumiTextMotion } from "./bangumi-text-motion";
+import { setupBangumiTitleLayout } from "./bangumi-title";
 import { escapeHtml } from "./html";
-import { setupMusicRuler } from "./music-ruler";
-import { setupMusicTextMotion } from "./music-text-motion";
-import { setupMusicTitleLayout } from "./music-title";
 import { createSurfaceTransition } from "./ui-transitions";
 
 type Actions = {
@@ -45,12 +45,12 @@ export function setupBangumiUI(
   const surface = document.createElement("div");
   surface.className = "bangumi-interface";
   surface.innerHTML = `
-    <div class="music-vignette" aria-hidden="true"></div>
-    <header class="music-header">
-      <div class="music-identity"><div class="music-brand"><strong>RHINE LAB</strong><span>BANGUMI ARCHIVE <i>／</i> 番剧档案</span></div></div>
+    <div class="bangumi-vignette" aria-hidden="true"></div>
+    <header class="bangumi-header">
+      <div class="bangumi-identity"><div class="bangumi-brand"><strong>RHINE LAB</strong><span>BANGUMI ARCHIVE <i>／</i> 番剧档案</span></div></div>
     </header>
-    <button type="button" class="music-view-toggle" data-action="overview" aria-pressed="false" aria-label="切换缩略图模式" disabled><span aria-hidden="true">▦</span> 缩略图模式 <kbd>V</kbd></button>
-    <section class="music-overview" aria-label="番剧缩略图总览" aria-hidden="true" hidden inert>
+    <button type="button" class="bangumi-view-toggle" data-action="overview" aria-pressed="false" aria-label="切换缩略图模式" disabled><span aria-hidden="true">▦</span> 缩略图模式 <kbd>V</kbd></button>
+    <section class="bangumi-overview" aria-label="番剧缩略图总览" aria-hidden="true" hidden inert>
       <div class="overview-columns"></div>
       <div class="overview-grid" role="group" aria-label="全部番剧"></div>
       <div class="overview-heading"><small>COLLECTION / OVERVIEW</small><h2>番剧档案总览</h2><p>点击月份切换列 · 点击箭头返回近景</p></div>
@@ -59,24 +59,24 @@ export function setupBangumiUI(
         <nav class="overview-controls" aria-label="总览月份导航"><button type="button" data-action="overview-prev" aria-label="上一个月份">←</button><span>← → 切换月份</span><button type="button" data-action="overview-next" aria-label="下一个月份">→</button></nav>
       </div>
     </section>
-    <section id="music-browse" class="music-browse" aria-label="番剧浏览" hidden inert>
-      <div class="music-browse-veil" aria-hidden="true"></div>
+    <section id="bangumi-browse" class="bangumi-browse" aria-label="番剧浏览" hidden inert>
+      <div class="bangumi-browse-veil" aria-hidden="true"></div>
       <div class="album-callout">
-        <p class="music-eyebrow">BANGUMI ARCHIVE <span>／</span> <span id="selection-genre"></span></p>
+        <p class="bangumi-eyebrow">BANGUMI ARCHIVE <span>／</span> <span id="selection-genre"></span></p>
         <div class="selection-rule"><span>BANGUMI <span id="selection-code-number">001</span></span><span id="selection-format"></span></div>
         <h1 id="selection-title"></h1><p id="selection-artist" class="selection-artist"></p>
         <div class="selection-meta" id="selection-meta"></div>
         <button type="button" class="open-album" data-action="open">查看番剧详情 <span>↗</span></button>
       </div>
-      <div class="music-navigation">
-        <div class="music-counter"><span class="music-eyebrow">BANGUMI / SELECT</span><div><b id="selection-number">01</b><span>/ <i id="selection-total">00</i></span></div></div>
+      <div class="bangumi-navigation">
+        <div class="bangumi-counter"><span class="bangumi-eyebrow">BANGUMI / SELECT</span><div><b id="selection-number">01</b><span>/ <i id="selection-total">00</i></span></div></div>
         <div class="album-stepper"><button type="button" data-action="prev" aria-label="上一部番剧">↑</button><div id="album-ticks"></div><button type="button" data-action="next" aria-label="下一部番剧">↓</button></div>
         <div class="genre-stepper"><button type="button" data-action="month-prev" aria-label="上一个月份">←</button><div><small>MONTH <span id="genre-index">01</span> / <span id="genre-total">00</span></small><span id="genre-name"></span></div><button type="button" data-action="month-next" aria-label="下一个月份">→</button></div>
       </div>
-      <div class="music-keyhint">← → 切月份 <span>／</span> ↑ ↓ 或滚轮切番剧 <span>／</span> ENTER 查看详情</div>
+      <div class="bangumi-keyhint">← → 切月份 <span>／</span> ↑ ↓ 或滚轮切番剧 <span>／</span> ENTER 查看详情</div>
     </section>
-    <section id="music-detail" class="music-detail" aria-label="番剧详情" hidden inert>
-      <button type="button" class="music-back" data-action="back">← 返回番剧架 <kbd>ESC</kbd></button>
+    <section id="bangumi-detail" class="bangumi-detail" aria-label="番剧详情" hidden inert>
+      <button type="button" class="bangumi-back" data-action="back">← 返回番剧架 <kbd>ESC</kbd></button>
       <div class="card-caption"><span id="detail-card-id"></span><small>拖动盒子，查看完整封面</small></div>
       <article id="album-detail-content" tabindex="-1"></article>
     </section>
@@ -87,13 +87,13 @@ export function setupBangumiUI(
     if (!element) throw new Error(`Missing Bangumi UI element: ${selector}`);
     return element;
   };
-  const browse = find<HTMLElement>("#music-browse");
-  const detail = find<HTMLElement>("#music-detail");
+  const browse = find<HTMLElement>("#bangumi-browse");
+  const detail = find<HTMLElement>("#bangumi-detail");
   const article = find<HTMLElement>("#album-detail-content");
-  const titleMotion = setupMusicTitleLayout(surface);
-  const textMotion = setupMusicTextMotion(surface);
-  const tickMotion = setupMusicRuler(find("#album-ticks"));
-  const overviewToggle = find<HTMLButtonElement>(".music-view-toggle");
+  const titleMotion = setupBangumiTitleLayout(surface);
+  const textMotion = setupBangumiTextMotion(surface);
+  const tickMotion = setupBangumiRuler(find("#album-ticks"));
+  const overviewToggle = find<HTMLButtonElement>(".bangumi-view-toggle");
   const overviewUI = setupBangumiOverview(surface, {
     selectColumn: actions.overviewColumn,
     selectRecord: actions.overviewRecord,
@@ -109,10 +109,10 @@ export function setupBangumiUI(
     "up",
     "cubic-bezier(0.45, 0, 0.25, 1)",
     [
-      find(".music-browse-veil"),
+      find(".bangumi-browse-veil"),
       find(".album-callout"),
-      find(".music-navigation"),
-      find(".music-keyhint"),
+      find(".bangumi-navigation"),
+      find(".bangumi-keyhint"),
     ],
   );
   const detailTransition = createSurfaceTransition(

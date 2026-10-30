@@ -1,7 +1,7 @@
 import * as THREE from "three";
+import type { BangumiSelectionLighting } from "./bangumi-lighting";
+import { setBangumiGlassClarity, shadeBangumiGlass } from "./bangumi-model";
 import { internalOpticsFragment } from "./internal-optics";
-import type { MusicSelectionLighting } from "./music-lighting";
-import { setMusicGlassClarity, shadeMusicGlass } from "./music-model";
 
 type Surface = THREE.MeshPhysicalMaterial;
 type Palette = { high: Surface; low?: Surface };
@@ -12,7 +12,7 @@ type Palette = { high: Surface; low?: Surface };
  * 为模型实例分配独立材质，更新清晰度和归位外观，并释放实例持有的材质。
  */
 export class CardAppearance {
-  musicLighting?: MusicSelectionLighting;
+  bangumiLighting?: BangumiSelectionLighting;
   private palettes = new Map<string, Palette>();
 
   register(name: string, high: Surface, low?: Surface) {
@@ -39,10 +39,10 @@ export class CardAppearance {
       mat.onBeforeCompile = (shader) => {
         if (mat.userData.opticalOrder)
           shader.fragmentShader = internalOpticsFragment(shader.fragmentShader);
-        shadeMusicGlass(shader, name);
-        this.musicLighting?.shade(shader, name);
+        shadeBangumiGlass(shader, name);
+        this.bangumiLighting?.shade(shader, name);
       };
-      mat.customProgramCacheKey = () => `music-surface-${name}`;
+      mat.customProgramCacheKey = () => `bangumi-surface-${name}`;
     }
   }
 
@@ -52,7 +52,7 @@ export class CardAppearance {
         child instanceof THREE.Mesh &&
         child.userData.surface === "Frosted_Polymer"
       )
-        setMusicGlassClarity(child.material as Surface, value);
+        setBangumiGlassClarity(child.material as Surface, value);
     });
   }
 

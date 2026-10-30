@@ -6,7 +6,7 @@ import { damp, smooth } from "../motion/motion";
  *
  * 使用同一进度控制镜头展开和盒体归位，避免两个动画脱节。
  */
-export class MusicOverviewMotion {
+export class BangumiOverviewMotion {
   private progress = { value: 0, velocity: 0 };
   active = false;
   get value() {
@@ -215,7 +215,7 @@ export function visibleOverviewLabels(
  * @param overview 总览镜头与阵列的过渡进度。
  * @returns 零到一之间的列高比例。
  */
-export function musicOverviewColumnExtent(
+export function bangumiOverviewColumnExtent(
   lane: number,
   centerLane: number,
   overview: number,
@@ -224,4 +224,4 @@ export function musicOverviewColumnExtent(
   return 1 - smooth(overview / 0.65) * (1 - edge);
 }
 
-export const MUSIC_OVERVIEW_PICK_EXTENT = 0.12;
+export const BANGUMI_OVERVIEW_PICK_EXTENT = 0.12;

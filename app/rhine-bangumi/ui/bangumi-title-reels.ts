@@ -1,4 +1,4 @@
-import { followMusicMotionSpeed } from "../motion/music-motion";
+import { followBangumiMotionSpeed } from "../motion/bangumi-motion";
 
 export type TitleGlyph = {
   key: string;
@@ -116,7 +116,7 @@ function createTitleTrack(
     const frames = Array.from({ length: STEPS + 1 }, (_, index) => ({
       [property]: format(at(index / STEPS).value),
     }));
-    const current = followMusicMotionSpeed(
+    const current = followBangumiMotionSpeed(
       element.animate(frames, {
         duration: DURATION,
         easing: "linear",
@@ -205,7 +205,7 @@ export function createTitleReels(visual: HTMLElement, spacer: HTMLElement) {
   const writeFaces = (slot: Slot, values: Face[]) => {
     while (slot.faces.length < values.length) {
       const face = document.createElement("span");
-      face.className = "music-title-face";
+      face.className = "bangumi-title-face";
       slot.faces.push(face);
       slot.reel.append(face);
     }
@@ -242,12 +242,12 @@ export function createTitleReels(visual: HTMLElement, spacer: HTMLElement) {
    */
   const create = (glyph: TitleGlyph) => {
     const host = document.createElement("span");
-    host.className = `music-title-slot music-title-slot-${glyph.kind}`;
+    host.className = `bangumi-title-slot bangumi-title-slot-${glyph.kind}`;
     const reel = document.createElement("span");
-    reel.className = "music-title-wheel";
+    reel.className = "bangumi-title-wheel";
     const faces = Array.from({ length: 3 }, () => {
       const face = document.createElement("span");
-      face.className = "music-title-face";
+      face.className = "bangumi-title-face";
       return face;
     });
     reel.append(...faces);

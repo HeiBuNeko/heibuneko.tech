@@ -1,9 +1,9 @@
 import { smooth } from "./motion";
 
-export const MUSIC_INTRO_SHOT_START = 21.92;
-export const MUSIC_INTRO_SAMPLE_RATE = 25;
-export const MUSIC_INTRO_LAST_FRAME = 120;
-export const MUSIC_INTRO_LANE_DELAY = 4;
+export const BANGUMI_INTRO_SHOT_START = 21.92;
+export const BANGUMI_INTRO_SAMPLE_RATE = 25;
+export const BANGUMI_INTRO_LAST_FRAME = 120;
+export const BANGUMI_INTRO_LANE_DELAY = 4;
 
 const progress = (frame: number, start: number, end: number) =>
   smooth((frame - start) / (end - start));
@@ -12,12 +12,12 @@ const lerp = (from: number, to: number, amount: number) =>
 const bell = (distance: number, width: number) =>
   Math.exp(-0.5 * (distance / width) ** 2);
 
-export function musicIntroFrame(shot: number) {
-  return 1 + (shot - MUSIC_INTRO_SHOT_START) * MUSIC_INTRO_SAMPLE_RATE;
+export function bangumiIntroFrame(shot: number) {
+  return 1 + (shot - BANGUMI_INTRO_SHOT_START) * BANGUMI_INTRO_SAMPLE_RATE;
 }
 
 function localFrame(relativeLane: number, shot: number) {
-  return musicIntroFrame(shot) + relativeLane * MUSIC_INTRO_LANE_DELAY;
+  return bangumiIntroFrame(shot) + relativeLane * BANGUMI_INTRO_LANE_DELAY;
 }
 
 type Key = readonly [frame: number, value: number];
@@ -39,8 +39,8 @@ function track(frame: number, keys: readonly Key[]) {
  * @param shot 开场影片中的当前时间。
  * @returns 指定时刻的开场姿态。
  */
-export function musicIntroPose(shot: number) {
-  const frame = musicIntroFrame(shot);
+export function bangumiIntroPose(shot: number) {
+  const frame = bangumiIntroFrame(shot);
   return {
     yaw: track(frame, [
       [1, 89],
@@ -76,7 +76,7 @@ export function musicIntroPose(shot: number) {
       [112, 0.481],
     ]),
     settle: progress(frame, 76, 112),
-    lift: 0.9 * progress(frame, 89, MUSIC_INTRO_LAST_FRAME),
+    lift: 0.9 * progress(frame, 89, BANGUMI_INTRO_LAST_FRAME),
   };
 }
 
@@ -89,7 +89,7 @@ export function musicIntroPose(shot: number) {
  * @param shot 开场影片中的当前时间。
  * @returns 当前列的交接比例。
  */
-export function musicIntroLaneSettle(relativeLane: number, shot: number) {
+export function bangumiIntroLaneSettle(relativeLane: number, shot: number) {
   return progress(localFrame(relativeLane, shot), 76, 104);
 }
 
@@ -112,7 +112,7 @@ function packets(frame: number) {
  * @param shot 开场影片中的当前时间。
  * @returns 指定单元的位移值。
  */
-export function musicIntroWave(
+export function bangumiIntroWave(
   relativeRow: number,
   relativeLane: number,
   shot: number,
@@ -136,8 +136,8 @@ export function musicIntroWave(
  * @param shot 开场影片中的当前时间。
  * @returns 以阵列行数表示的偏移。
  */
-export function musicIntroLightRow(shot: number) {
-  const frame = musicIntroFrame(shot);
+export function bangumiIntroLightRow(shot: number) {
+  const frame = bangumiIntroFrame(shot);
   const { forwardRow, returnRow } = packets(frame);
   const forward = Math.max(-26, forwardRow);
   const row = lerp(forward, returnRow, progress(frame, 35, 47));

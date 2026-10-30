@@ -7,9 +7,9 @@ import {
 } from "./data/data";
 import { viewportLayout } from "./motion/viewport-layout";
 import type { ArchiveScene } from "./rendering/scene";
+import { BangumiBoot } from "./ui/bangumi-boot";
 import { setupBangumiUI } from "./ui/bangumi-ui";
-import { MusicBoot } from "./ui/music-boot";
-import { mountMusicWheelNavigation } from "./ui/music-wheel-navigation";
+import { mountBangumiWheelNavigation } from "./ui/bangumi-wheel-navigation";
 
 export type BangumiHandle = {
   setActive: (active: boolean) => void;
@@ -41,7 +41,7 @@ export const mountBangumi = (
   status.className = "bangumi-status";
   status.textContent = "正在载入三维番剧架";
   const copyright = document.createElement("p");
-  copyright.className = "bangumi-copyright music-bottomline";
+  copyright.className = "bangumi-copyright bangumi-bottomline";
   const credit = (name: string, href: string) => {
     const link = document.createElement("a");
     link.href = href;
@@ -60,7 +60,7 @@ export const mountBangumi = (
   root.append(status, copyright);
 
   let interfaceUI: ReturnType<typeof setupBangumiUI> | undefined;
-  let boot: MusicBoot | undefined;
+  let boot: BangumiBoot | undefined;
   let wheel: { dispose: () => void } | undefined;
   let disposed = false;
   let ready = false;
@@ -73,7 +73,7 @@ export const mountBangumi = (
   const columnMemory = new Map<string, string>();
 
   const placed = () => {
-    const phase = scene?.musicPresentationPhase;
+    const phase = scene?.bangumiPresentationPhase;
     return phase === "placing" || phase === "presented";
   };
 
@@ -88,7 +88,7 @@ export const mountBangumi = (
     const next = wrap(index, records.length);
     if (mode === "detail") {
       if (!placed()) return;
-      scene.switchMusicAlbum(next, navigation);
+      scene.switchBangumiAlbum(next, navigation);
     } else {
       scene.select(next, navigation);
     }
@@ -168,9 +168,9 @@ export const mountBangumi = (
     overview = next;
     overviewRevealPending = !next;
     interfaceUI?.setOverview(next, () => {
-      if (!overview && !disposed) scene.setMusicOverview(false);
+      if (!overview && !disposed) scene.setBangumiOverview(false);
     });
-    if (next) scene.setMusicOverview(true);
+    if (next) scene.setBangumiOverview(true);
   };
 
   const openCover = () => {
@@ -221,8 +221,8 @@ export const mountBangumi = (
       interfaceUI?.updateOverview(scene.getOverviewColumns(), selected);
     if (
       overviewRevealPending &&
-      scene.musicOverviewProgress < 0.02 &&
-      scene.musicArchiveReady
+      scene.bangumiOverviewProgress < 0.02 &&
+      scene.bangumiArchiveReady
     ) {
       overviewRevealPending = false;
       interfaceUI?.showBrowseAfterOverview();
@@ -349,17 +349,17 @@ export const mountBangumi = (
         "aria-label",
         "三维番剧阵列，左右切月份，上下切番剧",
       );
-      await scene.prepareMusicRenderer();
+      await scene.prepareBangumiRenderer();
       if (disposed) return;
-      boot = new MusicBoot(root, {
+      boot = new BangumiBoot(root, {
         reduced,
         onStart: () => {
           scene?.setMode("hidden");
         },
         onComplete: (reason) => {
           const now = performance.now() / 1000;
-          if (reason === "skip") scene?.showMusicArchiveImmediately(now);
-          else scene?.finishMusicIntro(now);
+          if (reason === "skip") scene?.showBangumiArchiveImmediately(now);
+          else scene?.finishBangumiIntro(now);
           mode = "archive";
           interfaceUI?.showBrowse();
           interfaceUI?.setOverviewReady(true);
@@ -385,7 +385,7 @@ export const mountBangumi = (
         if (axis === "lane") stepGenre(direction);
         else stepAlbum(direction);
       };
-      wheel = mountMusicWheelNavigation(root, {
+      wheel = mountBangumiWheelNavigation(root, {
         enabled: () =>
           active &&
           ready &&

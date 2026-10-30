@@ -1,7 +1,7 @@
 import {
   type OverviewColumn,
   visibleOverviewLabels,
-} from "../archive/music-overview";
+} from "../archive/bangumi-overview";
 import { fileLocation, records } from "../data/data";
 import { isPortraitViewport } from "../motion/viewport-layout";
 import { createSurfaceTransition } from "./ui-transitions";
@@ -25,7 +25,7 @@ type Actions = {
  * @throws 缺少总览面板、月份容器、网格或返回按钮时抛出异常。
  */
 export function setupBangumiOverview(surface: HTMLElement, actions: Actions) {
-  const panel = surface.querySelector<HTMLElement>(".music-overview");
+  const panel = surface.querySelector<HTMLElement>(".bangumi-overview");
   const columns = surface.querySelector<HTMLElement>(".overview-columns");
   const grid = surface.querySelector<HTMLElement>(".overview-grid");
   const returnButton =

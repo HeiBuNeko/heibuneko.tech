@@ -1,5 +1,5 @@
 import type { Spring } from "../motion/motion";
-import { MUSIC_COLUMN_SPACING } from "../rendering/music-model";
+import { BANGUMI_COLUMN_SPACING } from "../rendering/bangumi-model";
 import { ROW_SPACING } from "./archive-loop";
 
 export const ARCHIVE_TRACK_KEYS = [
@@ -14,7 +14,7 @@ export type ArchiveTargets = Record<ArchiveTrack, number>;
 type Kinematics = Spring & { acceleration: number };
 type Polynomial = [number, number, number, number, number, number];
 
-export function musicArchiveTravelDuration(lanes: number, rows: number) {
+export function bangumiArchiveTravelDuration(lanes: number, rows: number) {
   const distance = Math.hypot(lanes, rows / 8);
   return 1.4 + Math.min(1, Math.max(0, (distance - 1) / 7));
 }
@@ -24,7 +24,7 @@ export function musicArchiveTravelDuration(lanes: number, rows: number) {
  *
  * 跟踪轨道目标及速度，使中途再次导航时不发生位置跳变。
  */
-export class MusicArchiveMotion {
+export class BangumiArchiveMotion {
   private states: Record<ArchiveTrack, Kinematics> = Object.fromEntries(
     ARCHIVE_TRACK_KEYS.map((key) => [
       key,
@@ -84,8 +84,8 @@ export class MusicArchiveMotion {
   retarget(tracks: ArchiveTracks, targets: ArchiveTargets) {
     for (const key of ARCHIVE_TRACK_KEYS)
       Object.assign(this.states[key], tracks[key]);
-    this.duration = musicArchiveTravelDuration(
-      (targets.column - tracks.column.value) / MUSIC_COLUMN_SPACING,
+    this.duration = bangumiArchiveTravelDuration(
+      (targets.column - tracks.column.value) / BANGUMI_COLUMN_SPACING,
       (targets.rail - tracks.rail.value) / ROW_SPACING,
     );
     this.elapsed = 0;

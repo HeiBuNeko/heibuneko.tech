@@ -4,6 +4,7 @@ import { motion } from "motion/react";
 import { Artist } from "./components/artist";
 import { Carousel } from "./components/carousel";
 import { Profile } from "./components/profile";
+import { System } from "./components/system";
 
 type HeroProps = {
   entrance: boolean;
@@ -23,7 +24,10 @@ export const Hero = ({ entrance }: HeroProps) => {
             : { duration: 0 }
         }
       >
-        <Profile />
+        <div className="flex flex-col gap-4">
+          <Profile />
+          <System />
+        </div>
 
         <footer className="flex flex-col justify-between gap-1">
           <Artist />

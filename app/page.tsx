@@ -8,21 +8,18 @@ import { NavTabs, type Tab } from "./components/nav-tabs";
 import { Splash } from "./components/splash";
 import { Hero } from "./hero";
 
-const Bangumi = dynamic(
-  () => import("./rhine-bangumi").then((module) => module.Bangumi),
-  { ssr: false },
-);
+const Gura = dynamic(() => import("./gura").then((module) => module.Gura), {
+  ssr: false,
+});
 
 const HomePage = () => {
   const [tab, setTab] = useState<Tab>("hero");
   const [pending, setPending] = useState<Tab | null>(null);
   const [splash, setSplash] = useState(true);
   const [entrance, setEntrance] = useState(true);
-  const [bangumiMounted, setBangumiMounted] = useState(false);
 
   const select = (next: Tab) => {
     if (next === tab || pending) return;
-    if (next === "bangumi") setBangumiMounted(true);
     setPending(next);
   };
 
@@ -37,7 +34,7 @@ const HomePage = () => {
     <div className="relative h-screen w-screen overflow-hidden">
       <Cursor />
       {tab === "hero" && <Hero entrance={entrance} />}
-      {bangumiMounted && <Bangumi active={tab === "bangumi"} />}
+      {tab === "gura" && <Gura />}
       <NavTabs tab={tab} onSelect={select} />
       {splash && <Splash />}
       {pending && (

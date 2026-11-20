@@ -1,6 +1,8 @@
 "use client";
 
 import { motion } from "motion/react";
+import { useTheme } from "next-themes";
+import { useLayoutEffect } from "react";
 import { Artist } from "./components/artist";
 import { Carousel } from "./components/carousel";
 import { Profile } from "./components/profile";
@@ -11,6 +13,12 @@ type HeroProps = {
 };
 
 export const Hero = ({ entrance }: HeroProps) => {
+  const { setTheme } = useTheme();
+
+  useLayoutEffect(() => {
+    setTheme("dark");
+  }, []);
+
   return (
     <>
       <Carousel />

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Noto_Sans_SC } from "next/font/google";
 import "./globals.css";
 import Script from "next/script";
+import { ThemeProvider as NextThemesProvider } from "next-themes";
 import { SWRConfig, type SWRConfiguration } from "swr";
 
 const notoSansSC = Noto_Sans_SC({
@@ -21,9 +22,20 @@ const swrConfig: SWRConfiguration = {
 
 const RootLayout = ({ children }: LayoutProps<"/">) => {
   return (
-    <html lang="en" className={`${notoSansSC.variable} dark antialiased`}>
+    <html
+      lang="en"
+      className={`${notoSansSC.variable} dark antialiased`}
+      suppressHydrationWarning
+    >
       <body className="bg-background text-foreground">
-        <SWRConfig value={swrConfig}>{children}</SWRConfig>
+        <NextThemesProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <SWRConfig value={swrConfig}>{children}</SWRConfig>
+        </NextThemesProvider>
         <Script
           src="https://umami.heibuneko.tech/script.js"
           data-website-id="5fd2c529-3e22-47b4-a8c5-4e9bca3e7d49"

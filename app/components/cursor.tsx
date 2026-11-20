@@ -86,7 +86,7 @@ export const Cursor = () => {
     <>
       {/* CIRCLE */}
       <motion.div
-        className="pointer-events-none absolute z-45 h-2 w-2 rounded-full bg-white"
+        className="bg-foreground pointer-events-none absolute z-45 h-2 w-2 rounded-full"
         animate={{
           scale: hovered || pressed ? 6 : 1,
           opacity: visible ? 0.5 : 0,
@@ -96,7 +96,7 @@ export const Cursor = () => {
       {/* DOT */}
       <motion.div
         ref={ref}
-        className="pointer-events-none absolute z-50 h-2 w-2 rounded-full bg-white"
+        className="bg-foreground pointer-events-none absolute z-50 h-2 w-2 rounded-full"
         animate={{
           scale: hovered || pressed ? 0.6 : 1,
           opacity: visible ? 1 : 0,
